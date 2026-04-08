@@ -25,6 +25,3 @@ npm-debug.log*
 .wrangler
 .dev.vars
 .open-next
-
-# Generated from pdfjs-dist on install
-public/pdf.worker.min.mjs
