@@ -46,7 +46,7 @@ export async function generateJsonCompletion<T>(
 
   try {
     return JSON.parse(jsonStr.trim()) as T;
-  } catch (error) {
+  } catch {
     console.error('Failed to parse JSON response:', response);
     throw new Error('Invalid JSON response from Claude');
   }

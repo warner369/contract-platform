@@ -5,28 +5,27 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cf": "npx opennextjs-cloudflare",
-    "preview": "wrangler pages dev",
-    "deploy": "wrangler pages deploy",
+    "build:cf": "npx opennextjs-cloudflare build",
+    "preview": "wrangler dev",
+    "deploy": "npx opennextjs-cloudflare deploy",
     "lint": "eslint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "mammoth": "^1.12.0",
-    "next": "16.2.1",
-    "pdf-parse": "^2.4.5",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "next": "^16.1.5",
+    "pdfjs-dist": "^5.6.205",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.18.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.1",
+    "eslint-config-next": "^16.1.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "^4.81.0"

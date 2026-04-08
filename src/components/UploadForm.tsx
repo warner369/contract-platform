@@ -5,6 +5,26 @@ import { useRouter } from 'next/navigation';
 import UploadArea from './UploadArea';
 import type { ParsedContract } from '@/types/contract';
 
+async function extractPdfText(file: File): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    pages.push(pageText);
+  }
+
+  return pages.join('\n\n').replace(/\s+/g, ' ').trim();
+}
+
 export default function UploadForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -18,15 +38,30 @@ export default function UploadForm() {
       let response: Response;
 
       if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        response = await fetch('/api/parse', { method: 'POST', body: formData });
-      } else {
+        if (file.type === 'application/pdf') {
+          const extractedText = await extractPdfText(file);
+          if (!extractedText || extractedText.length < 50) {
+            throw new Error('Could not extract text from PDF. The file may contain only images. Try pasting the text instead.');
+          }
+          response = await fetch('/api/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: extractedText }),
+          });
+        } else {
+          const formData = new FormData();
+          formData.append('file', file);
+          response = await fetch('/api/parse', { method: 'POST', body: formData });
+        }
+      } else if (text) {
         response = await fetch('/api/parse', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
         });
+      } else {
+        setIsLoading(false);
+        return;
       }
 
       const data = await response.json();
@@ -37,8 +72,6 @@ export default function UploadForm() {
 
       const contract = data as ParsedContract;
 
-      // Store in sessionStorage for the contract page to retrieve
-      // The ContractProvider will handle state management after navigation
       sessionStorage.setItem('contract', JSON.stringify(contract));
       router.push('/contract');
     } catch (err) {

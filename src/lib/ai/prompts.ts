@@ -122,17 +122,3 @@ Suggest specific changes as JSON:
 
 export type ParseResponse = ParsedContract;
 export type AnalyseResponse = ClauseAnalysis;
-export type SuggestResponse = {
-  suggestions: Array<{
-    type: 'modify' | 'add' | 'remove';
-    originalText: string;
-    suggestedText: string;
-    rationale: string;
-  }>;
-  alternatives: Array<{
-    text: string;
-    pros: string[];
-    cons: string[];
-  }>;
-  negotiationTips: string[];
-};

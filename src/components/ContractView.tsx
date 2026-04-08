@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useContract } from '@/components/providers/ContractProvider';
-import type { ParsedContract, ClauseAnalysis, Clause } from '@/types/contract';
+import type { ParsedContract, ClauseAnalysis } from '@/types/contract';
+
+const emptySubscribe = () => () => {};
+function useHydrated() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 export default function ContractView() {
   const router = useRouter();
   const { state, selectClause, setContract } = useContract();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useHydrated();
 
   useEffect(() => {
     if (mounted && !state.current && !state.isLoading) {

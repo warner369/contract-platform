@@ -7,7 +7,6 @@ import {
 } from '@/lib/ai/prompts';
 import type { ParsedContract } from '@/types/contract';
 
-// Cloudflare Workers compatibility via OpenNext adapter
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let text: string;
 
     if (contentType.includes('multipart/form-data')) {
-      // Handle file upload
       const formData = await request.formData();
       const file = formData.get('file') as File | null;
 
@@ -27,20 +25,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      // Validate file type
       const allowedTypes = [
-        'application/pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/msword',
       ];
       if (!allowedTypes.includes(file.type)) {
         return NextResponse.json(
-          { error: 'Invalid file type. Please upload a PDF or Word document.' },
+          { error: 'PDF files must be uploaded as extracted text. Please use the text paste option for PDFs.' },
           { status: 400 },
         );
       }
 
-      // Validate file size (20MB limit)
       if (file.size > 20 * 1024 * 1024) {
         return NextResponse.json(
           { error: 'File too large. Maximum size is 20MB.' },
@@ -48,11 +43,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      // Extract text from file
       const buffer = Buffer.from(await file.arrayBuffer());
       text = await extractText(buffer, file.type);
     } else if (contentType.includes('application/json')) {
-      // Handle JSON with text field
       const body = await request.json();
       if (!body.text || typeof body.text !== 'string') {
         return NextResponse.json(
@@ -68,7 +61,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate text length
     if (text.length < 100) {
       return NextResponse.json(
         { error: 'Contract text is too short. Please provide a complete contract.' },
@@ -76,13 +68,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Parse contract with Claude
     const contract = await generateJsonCompletion<ParsedContract>(
       PARSE_SYSTEM_PROMPT,
       createParsePrompt(text),
     );
 
-    // Validate response structure
     if (!contract.title || !contract.clauses || !Array.isArray(contract.clauses)) {
       return NextResponse.json(
         { error: 'Failed to parse contract structure' },

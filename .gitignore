@@ -1,11 +1,14 @@
 node_modules
 .env*
 .claude
+.opencode
+*.docx
 
 # Next.js
 .next
 out
 .vercel
+next-env.d.ts
 
 # OS
 .DS_Store
@@ -21,3 +24,4 @@ npm-debug.log*
 # Cloudflare
 .wrangler
 .dev.vars
+.open-next

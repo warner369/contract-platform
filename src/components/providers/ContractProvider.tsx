@@ -11,6 +11,7 @@ import type {
   ParsedContract,
   ClauseChange,
   ContractState,
+  ContractAction,
   Clause,
 } from '@/types/contract';
 
@@ -23,16 +24,7 @@ const initialState: ContractState = {
   error: null,
 };
 
-type Action =
-  | { type: 'SET_CONTRACT'; payload: ParsedContract }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SELECT_CLAUSE'; payload: string | null }
-  | { type: 'APPLY_CHANGE'; payload: ClauseChange }
-  | { type: 'REJECT_CHANGE'; payload: string }
-  | { type: 'RESET' };
-
-function contractReducer(state: ContractState, action: Action): ContractState {
+function contractReducer(state: ContractState, action: ContractAction): ContractState {
   switch (action.type) {
     case 'SET_CONTRACT':
       return {
@@ -159,17 +151,11 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RESET' });
   }, []);
 
-  const getClauseById = useCallback(
-    (clauseId: string): Clause | undefined =>
-      state.current?.clauses.find((c) => c.id === clauseId),
-    [state.current],
-  );
+  const getClauseById = (clauseId: string): Clause | undefined =>
+    state.current?.clauses.find((c) => c.id === clauseId);
 
-  const getChangesForClause = useCallback(
-    (clauseId: string): ClauseChange[] =>
-      state.changes.filter((c) => c.clauseId === clauseId),
-    [state.changes],
-  );
+  const getChangesForClause = (clauseId: string): ClauseChange[] =>
+    state.changes.filter((c) => c.clauseId === clauseId);
 
   const value: ContractContextValue = {
     state,

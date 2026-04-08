@@ -1,15 +1,9 @@
-export { extractTextFromPdf } from './pdf';
 export { extractTextFromDocx } from './docx';
 
 export async function extractText(
   buffer: Buffer,
   mimeType: string,
 ): Promise<string> {
-  if (mimeType === 'application/pdf') {
-    const { extractTextFromPdf } = await import('./pdf');
-    return extractTextFromPdf(buffer);
-  }
-
   if (
     mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     mimeType === 'application/msword'
@@ -18,5 +12,5 @@ export async function extractText(
     return extractTextFromDocx(buffer);
   }
 
-  throw new Error(`Unsupported file type: ${mimeType}`);
+  throw new Error(`Unsupported file type: ${mimeType}. PDF files must be processed client-side.`);
 }
