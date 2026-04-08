@@ -19,10 +19,11 @@ Contract review and collaboration platform for SMBs: upload contracts, parse int
 npm run dev          # Development server (Turbopack)
 npm run build        # Next.js production build
 npm run lint         # ESLint check
-npm run build:cf     # Build for Cloudflare Workers
+npm run build:cf     # Build for Cloudflare Workers (Linux/CI only)
 npm run preview      # Local Cloudflare Workers preview (wrangler dev)
-npm run deploy       # Deploy to Cloudflare Workers
 ```
+
+> **Do not use `npm run deploy`** — it bypasses Cloudflare Workers Builds and breaks the git integration. Deployments happen automatically when you push to `main`.
 
 ## Project Structure
 
@@ -50,7 +51,7 @@ src/
 │   │   ├── prompts.ts                    # System prompts + prompt factories
 │   │   └── client.ts                     # Anthropic SDK client + generateJsonCompletion
 │   └── parsers/
-│       ├── pdf.ts                         # PDF text extraction (STUB — client-side only)
+│       ├── pdf.ts                         # Stub — throws error (PDF handled client-side)
 │       ├── docx.ts                        # DOCX text extraction (mammoth)
 │       └── index.ts                       # Parser router by MIME type
 └── types/
@@ -98,37 +99,28 @@ Uploaded contract data passes from the landing page (`UploadForm`) to `/contract
 - **NEVER** call the Anthropic API from client components — always use API routes
 - All AI-suggested changes MUST be proposals requiring explicit user acceptance
 - User modifications are tracked but never auto-applied
-- `ANTHROPIC_API_KEY` must be set in `.env.local` for dev and as a Cloudflare Workers secret for deployment (`wrangler secret put ANTHROPIC_API_KEY`)
+- `ANTHROPIC_API_KEY` must be set in `.env.local` for dev and as a Cloudflare Workers secret for deployment
 
 ## Deployment
 
-Deployment is via **Cloudflare Workers Builds** (CI/CD connected to the GitHub repo). Do **NOT** run `npm run deploy` from Windows — the OpenNext build produces broken chunk references on Windows. Do **NOT** run `npm run deploy` from any machine — it bypasses Workers Builds and will break the git integration connection.
+Deployment is via **Cloudflare Workers Builds** (CI/CD connected to the GitHub repo).
 
-In the Cloudflare dashboard, configure the Workers Builds:
+In the Cloudflare dashboard:
 - **Build command**: `npx @opennextjs/cloudflare build`
 - **Deploy command**: `npx @opennextjs/cloudflare deploy`
+- Set `ANTHROPIC_API_KEY` as a Workers secret
 
-Set `ANTHROPIC_API_KEY` as a Workers secret via the Cloudflare dashboard or `wrangler secret put`.
+> **Windows limitation:** `@opennextjs/cloudflare` produces broken chunk references on Windows. Local dev (`npm run dev`) and lint/typecheck work fine, but deployments must go through the Cloudflare CI. Do not run `npm run deploy` from any machine — it bypasses Workers Builds and breaks the git connection.
 
 ## Known Issues
 
-- **`pdf.ts` is a stub**: PDF extraction is handled client-side in `UploadForm.tsx` using `pdfjs-dist`. The server-side `pdf.ts` only throws an error. DOCX extraction works server-side via mammoth. The `pdfjs-dist` worker file is copied to `public/pdf.worker.min.mjs` via a `postinstall` script.
-- **`ComparisonView.tsx` is orphaned**: Fully implemented but never imported or rendered anywhere. Needs to be wired into the contract page.
-- **No suggest-change UI**: The `/api/suggest-change` endpoint exists but no component calls it. Users cannot express negotiation intent or see proposed edits.
+- **`pdf.ts` is a stub**: PDF extraction is handled client-side in `UploadForm.tsx` using `pdfjs-dist`. The worker file (`public/pdf.worker.min.mjs`) must be re-copied from `node_modules/pdfjs-dist/build/` when upgrading `pdfjs-dist`. The server-side `pdf.ts` only throws an error — PDFs must be sent as extracted text via JSON.
+- **`ComparisonView.tsx` is orphaned**: Fully implemented but never imported or rendered. Needs to be wired into the contract page.
+- **No suggest-change UI**: The `/api/suggest-change` endpoint exists but no component calls it.
 - **No accept/reject UI**: `ContractProvider` has `applyChange`/`rejectChange` actions but no UI buttons trigger them.
-- **Duplicate types**: `SuggestResponse` was defined in both `types/contract.ts` and `lib/ai/prompts.ts`. Fixed — now only in `types/contract.ts`. `ContractAction` was duplicated in `ContractProvider.tsx`. Fixed — now imported from `types/contract.ts`.
-- **Windows build limitation**: `@opennextjs/cloudflare` produces broken chunk references on Windows. Deployment MUST be done via Cloudflare Workers Builds (Linux CI) — never `npm run deploy` from Windows. Local dev (`npm run dev`) and lint/typecheck work fine on Windows.
 
-## Tasks
+## TODO
 
-- [x] 1. Create `/api/parse` route — PDF/DOCX extraction + Claude parsing
-- [x] 2. Create `/contract` page — display parsed clauses
-- [x] 3. Create `/api/analyse-clause` route — clause explanation + risk assessment
-- [x] 4. Create `/api/suggest-change` route — intent-based editing
-- [x] 5. Implement `ContractView.tsx` — clause display with expand/select
-- [ ] 6. Implement `ClauseDetail.tsx` — detail panel currently inlined in ContractView; needs suggest-change UI added
-- [x] 7. Create `ContractProvider.tsx` — React Context + useReducer state management
-- [ ] 8. Wire up `ComparisonView` — component exists but is not imported/used anywhere
-- [x] 9. Fix `pdf.ts` — moved to client-side extraction via pdfjs-dist
-- [ ] 10. Wire suggest-change UI — add intent input + proposal accept/reject flow
-- [x] 11. Deduplicate `SuggestResponse` type — consolidated into `types/contract.ts`
+- [ ] Implement `ClauseDetail.tsx` — extract from inline in ContractView, add suggest-change UI
+- [ ] Wire up `ComparisonView` — import and render in the contract page
+- [ ] Wire suggest-change UI — add intent input + proposal accept/reject flow
