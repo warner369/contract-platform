@@ -2,6 +2,7 @@ name = "contract-platform"
 main = ".open-next/worker.js"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 routes = [
   { pattern = "contract-platform.dubussy.com", custom_domain = true }
 ]
