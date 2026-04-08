@@ -112,7 +112,7 @@ Set `ANTHROPIC_API_KEY` as a Workers secret via the Cloudflare dashboard or `wra
 
 ## Known Issues
 
-- **`pdf.ts` is a stub**: PDF extraction is handled client-side in `UploadForm.tsx` using `pdfjs-dist`. The server-side `pdf.ts` only throws an error. DOCX extraction works server-side via mammoth.
+- **`pdf.ts` is a stub**: PDF extraction is handled client-side in `UploadForm.tsx` using `pdfjs-dist`. The server-side `pdf.ts` only throws an error. DOCX extraction works server-side via mammoth. The `pdfjs-dist` worker file is copied to `public/pdf.worker.min.mjs` via a `postinstall` script.
 - **`ComparisonView.tsx` is orphaned**: Fully implemented but never imported or rendered anywhere. Needs to be wired into the contract page.
 - **No suggest-change UI**: The `/api/suggest-change` endpoint exists but no component calls it. Users cannot express negotiation intent or see proposed edits.
 - **No accept/reject UI**: `ContractProvider` has `applyChange`/`rejectChange` actions but no UI buttons trigger them.
