@@ -7,8 +7,8 @@ import {
 } from '@/lib/ai/prompts';
 import type { ParsedContract } from '@/types/contract';
 
-export const runtime = 'nodejs';
-export const maxDuration = 60; // Allow up to 60 seconds for processing
+// Cloudflare Workers compatibility via OpenNext adapter
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {

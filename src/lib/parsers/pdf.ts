@@ -1,18 +1,12 @@
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    const data = await pdf(buffer, {
-      // Disable image extraction for faster processing
-      pagerender: function(pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) {
-        return pageData.getTextContent().then(function(content) {
-          return content.items.map((item) => item.str).join(' ');
-        });
-      },
-    });
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
 
     // Clean up the extracted text
-    const text = data.text
+    const text = result.text
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n\n')
       .trim();

@@ -6,7 +6,7 @@ import {
 } from '@/lib/ai/prompts';
 import type { Clause, ClauseAnalysis } from '@/types/contract';
 
-export const runtime = 'nodejs';
+// Cloudflare Workers compatibility via OpenNext adapter
 export const maxDuration = 30;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
