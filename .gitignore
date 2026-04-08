@@ -1,0 +1,23 @@
+node_modules
+.env*
+.claude
+
+# Next.js
+.next
+out
+.vercel
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Wrangler (Cloudflare)
+.wrangler
+wrangler.toml
