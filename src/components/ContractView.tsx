@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useContract } from '@/components/providers/ContractProvider';
 import ClauseDetailPanel from './ClauseDetailPanel';
@@ -15,6 +15,7 @@ export default function ContractView() {
   const router = useRouter();
   const { state, selectClause, setContract, getChangesForClause } = useContract();
   const mounted = useHydrated();
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (mounted && !state.current && !state.isLoading) {
@@ -31,6 +32,14 @@ export default function ContractView() {
       }
     }
   }, [mounted, state.current, state.isLoading, router, setContract]);
+
+  useEffect(() => {
+    if (state.selectedClauseId && detailRef.current) {
+      setTimeout(() => {
+        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+  }, [state.selectedClauseId]);
 
   if (!mounted || state.isLoading) {
     return (
@@ -69,27 +78,27 @@ export default function ContractView() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Clause List */}
-        <div className="lg:col-span-2 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-            Clauses
-          </h2>
-          {current.clauses.map((clause) => {
-            const changes = getChangesForClause(clause.id);
-            const pendingCount = changes.filter(c => c.status === 'pending').length;
-            const acceptedCount = changes.filter(c => c.status === 'accepted').length;
-            const rejectedCount = changes.filter(c => c.status === 'rejected').length;
-            const originalClause = state.original?.clauses.find(c => c.id === clause.id);
-            const isModified = originalClause && originalClause.text !== clause.text;
-            const hasChanges = changes.length > 0;
+      {/* Clause List with inline detail panels */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          Clauses
+        </h2>
+        {current.clauses.map((clause) => {
+          const changes = getChangesForClause(clause.id);
+          const pendingCount = changes.filter(c => c.status === 'pending').length;
+          const acceptedCount = changes.filter(c => c.status === 'accepted').length;
+          const rejectedCount = changes.filter(c => c.status === 'rejected').length;
+          const originalClause = state.original?.clauses.find(c => c.id === clause.id);
+          const isModified = originalClause && originalClause.text !== clause.text;
+          const hasChanges = changes.length > 0;
+          const isSelected = state.selectedClauseId === clause.id;
 
-            return (
+          return (
+            <div key={clause.id} ref={isSelected ? detailRef : undefined}>
               <button
-                key={clause.id}
-                onClick={() => selectClause(clause.id)}
+                onClick={() => selectClause(isSelected ? null : clause.id)}
                 className={`w-full text-left p-4 rounded-xl border transition-all ${
-                  state.selectedClauseId === clause.id
+                  isSelected
                     ? 'border-blue-300 bg-blue-50'
                     : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
@@ -160,30 +169,30 @@ export default function ContractView() {
                         </svg>
                       </span>
                     )}
+                    <svg
+                      className={`w-4 h-4 text-slate-400 transition-transform ${isSelected ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </div>
               </button>
-            );
-          })}
-        </div>
 
-        {/* Clause Detail Panel */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
-            {state.selectedClauseId ? (
-              <ClauseDetailPanel
-                clause={current.clauses.find((c) => c.id === state.selectedClauseId)!}
-                contractTitle={current.title}
-              />
-            ) : (
-              <div className="p-6 rounded-xl border border-slate-200 bg-white">
-                <p className="text-sm text-slate-500">
-                  Click a clause to see its explanation, risk assessment, and related clauses.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+              {isSelected && (
+                <div className="mt-2">
+                  <ClauseDetailPanel
+                    clause={clause}
+                    contractTitle={current.title}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

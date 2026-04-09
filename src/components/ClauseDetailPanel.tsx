@@ -188,13 +188,22 @@ export default function ClauseDetailPanel({
 
           {analysis.relatedClauses.length > 0 && (
             <Section title="Related clauses" defaultOpen={false} count={analysis.relatedClauses.length}>
-              <ul className="space-y-1">
+              <ol className="space-y-2">
                 {analysis.relatedClauses.map((rel, i) => (
-                  <li key={i} className="text-sm text-slate-600">
-                    <span className="font-medium">{rel.clauseId}</span>: {rel.relationship}
+                  <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                    <span className="text-slate-400 font-medium min-w-[1.25rem]">{i + 1}.</span>
+                    <span>
+                      <button
+                        onClick={() => selectClause(rel.clauseId)}
+                        className="text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        {rel.clauseId}
+                      </button>
+                      <span className="text-slate-500"> — {rel.relationship}</span>
+                    </span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </Section>
           )}
 
