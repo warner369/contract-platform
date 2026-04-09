@@ -134,7 +134,7 @@ In the Cloudflare dashboard:
 - **`ComparisonView.tsx` is orphaned**: Fully implemented but never imported or rendered. Needs to be wired into the contract page.
 - **No suggest-change UI**: The `/api/suggest-change` endpoint exists but no component calls it.
 - **No accept/reject UI**: `ContractProvider` has `applyChange`/`rejectChange` actions but no UI buttons trigger them.
-- **`npm install` may need `--legacy-peer-deps`**: Due to a version conflict between `esbuild@0.25.4` (needed by `@opennextjs/aws`) and `esbuild@^0.27` (optional peer dep of `vite@8`), running `npm install` without `--legacy-peer-deps` will fail. This is safe — the conflicting peer is optional and `esbuild@0.25.4` works for both Vitest (which doesn't need esbuild at runtime) and Cloudflare builds.
+- **`.npmrc` contains `legacy-peer-deps=true`**: This is required because `esbuild@0.25.4` (needed by `@opennextjs/aws`) conflicts with `esbuild@^0.27` (optional peer dep of `vite@8`). Without this setting, `npm ci` on Cloudflare's CI will fail with `ERESOLVE`. Do NOT remove `.npmrc` or the `legacy-peer-deps=true` line.
 
 ## TODO
 
