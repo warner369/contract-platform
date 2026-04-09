@@ -1,10 +1,8 @@
 import Link from 'next/link';
-import ContractView from '@/components/ContractView';
+import ContractPageClient from '@/components/ContractPageClient';
 import { ContractProvider } from '@/components/providers/ContractProvider';
 
 export default function ContractPage() {
-  // This is a client-side rendered page - the contract data is passed
-  // via React context from the upload flow
   return (
     <ContractProvider>
       <div className="flex flex-col min-h-screen bg-[#f8f7f4]">
@@ -21,8 +19,8 @@ export default function ContractPage() {
           </div>
         </header>
 
-        <main className="flex-1">
-          <ContractView />
+        <main className="flex-1 max-w-7xl mx-auto px-6 pt-4">
+          <ContractPageClient />
         </main>
       </div>
     </ContractProvider>

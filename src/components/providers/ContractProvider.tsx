@@ -20,6 +20,7 @@ import type {
   Clause,
 } from '@/types/contract';
 import { contractReducer, initialState } from '@/lib/reducer';
+import { withAudit } from '@/lib/audit';
 
 interface ContractContextValue {
   state: ContractState;
@@ -67,43 +68,43 @@ export function ContractProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyChange = useCallback((change: ClauseChange) => {
-    dispatch({ type: 'APPLY_CHANGE', payload: change });
+    withAudit(dispatch, { type: 'APPLY_CHANGE', payload: change }, `Accepted change on clause ${change.clauseId}`);
   }, []);
 
   const rejectChange = useCallback((changeId: string) => {
-    dispatch({ type: 'REJECT_CHANGE', payload: changeId });
+    withAudit(dispatch, { type: 'REJECT_CHANGE', payload: changeId }, `Rejected change ${changeId}`);
   }, []);
 
   const proposeChange = useCallback((change: ClauseChange) => {
-    dispatch({ type: 'PROPOSE_CHANGE', payload: change });
+    withAudit(dispatch, { type: 'PROPOSE_CHANGE', payload: change }, `Proposed change on clause ${change.clauseId}`);
   }, []);
 
   const addClauseNote = useCallback((note: ClauseNote) => {
-    dispatch({ type: 'ADD_CLAUSE_NOTE', payload: note });
+    withAudit(dispatch, { type: 'ADD_CLAUSE_NOTE', payload: note }, `Added ${note.visibility} note on clause ${note.clauseId}`);
   }, []);
 
   const removeClauseNote = useCallback((noteId: string) => {
-    dispatch({ type: 'REMOVE_CLAUSE_NOTE', payload: noteId });
+    withAudit(dispatch, { type: 'REMOVE_CLAUSE_NOTE', payload: noteId }, `Removed note ${noteId}`);
   }, []);
 
   const setLifecycleState = useCallback((lifecycleState: ContractLifecycleState) => {
-    dispatch({ type: 'SET_LIFECYCLE_STATE', payload: lifecycleState });
+    withAudit(dispatch, { type: 'SET_LIFECYCLE_STATE', payload: lifecycleState }, `Lifecycle changed to ${lifecycleState}`);
   }, []);
 
   const addThread = useCallback((thread: ConversationThread) => {
-    dispatch({ type: 'ADD_THREAD', payload: thread });
+    withAudit(dispatch, { type: 'ADD_THREAD', payload: thread }, `Started discussion on clause ${thread.clauseId}`);
   }, []);
 
   const addThreadMessage = useCallback((threadId: string, message: ThreadMessage) => {
-    dispatch({ type: 'ADD_THREAD_MESSAGE', payload: { threadId, message } });
+    withAudit(dispatch, { type: 'ADD_THREAD_MESSAGE', payload: { threadId, message } }, `Replied in thread ${threadId}`);
   }, []);
 
   const resolveThread = useCallback((threadId: string) => {
-    dispatch({ type: 'RESOLVE_THREAD', payload: threadId });
+    withAudit(dispatch, { type: 'RESOLVE_THREAD', payload: threadId }, `Resolved thread ${threadId}`);
   }, []);
 
   const setVariable = useCallback((variable: ContractVariable) => {
-    dispatch({ type: 'SET_VARIABLE', payload: variable });
+    withAudit(dispatch, { type: 'SET_VARIABLE', payload: variable }, `Set variable "${variable.name}" to "${variable.value}"`);
   }, []);
 
   const addAuditEntry = useCallback((entry: AuditEntry) => {
