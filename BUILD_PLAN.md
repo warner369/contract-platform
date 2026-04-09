@@ -510,6 +510,10 @@ Each row:
 | Inline accordion layout | ✅ | 1 (rewrite ContractView) | Detail panel expands below clause card instead of sidebar |
 | Related clauses formatting | ✅ | 1 (edit ClauseDetailPanel) | Numbered list with clickable clause IDs |
 | Tracked-changes DOCX export | ✅ | 3 (new export.ts + ExportButton.tsx + edit page) | Downloads Word doc with redline for accepted/pending changes |
+| Export button disabled when no changes | ✅ | 1 (edit ExportButton) | Greyed out until accepted or pending changes exist |
+| Export disclaimer with bold copy-paste guidance | ✅ | 1 (edit ExportButton) | Clear format warning + bold copy-paste alternative |
+| Alternatives under each suggestion | ✅ | 2 (edit ProactiveSuggestions + SuggestChangePanel) | Alternatives shown as expandable cards inside each suggestion card |
+| Dim other suggestions on accept/reject | ✅ | 2 (edit ProactiveSuggestions + SuggestChangePanel) | Unselected suggestions dim to 40% opacity; "Choose a different option" link to override |
 
 ---
 

@@ -31,8 +31,7 @@ export default function SuggestChangePanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<SuggestResponse | null>(null);
-  const [handledSuggestions, setHandledSuggestions] = useState<Set<string>>(new Set());
-  const [previewSuggestionId, setPreviewSuggestionId] = useState<string | null>(null);
+  const [handledKeys, setHandledKeys] = useState<Set<string>>(new Set());
 
   async function handleSubmit() {
     if (!intent.trim()) return;
@@ -76,8 +75,7 @@ export default function SuggestChangePanel({
     };
     proposeChange(change);
     applyChange({ ...change, status: 'accepted' });
-    setHandledSuggestions((prev) => new Set(prev).add(suggestion.originalText + suggestion.suggestedText));
-    setPreviewSuggestionId(null);
+    setHandledKeys((prev) => new Set(prev).add(suggestion.originalText + suggestion.suggestedText));
   }
 
   function handleReject(suggestion: SuggestResponse['suggestions'][0]) {
@@ -92,21 +90,20 @@ export default function SuggestChangePanel({
     };
     proposeChange(change);
     rejectChange(change.id);
-    setHandledSuggestions((prev) => new Set(prev).add(suggestion.originalText + suggestion.suggestedText));
-    setPreviewSuggestionId(null);
+    setHandledKeys((prev) => new Set(prev).add(suggestion.originalText + suggestion.suggestedText));
   }
 
-  function handleUseAlternative(alt: SuggestResponse['alternatives'][0]) {
-    const suggestion = {
-      type: 'modify' as const,
-      originalText: clause.text,
+  function handleUseAlternative(suggestion: SuggestResponse['suggestions'][0], alt: SuggestResponse['alternatives'][0]) {
+    handleAccept({
+      type: 'modify',
+      originalText: suggestion.originalText,
       suggestedText: alt.text,
       rationale: `Alternative: ${alt.pros.join(', ')}`,
-    };
-    handleAccept(suggestion);
+    });
   }
 
   const suggestionKey = (s: SuggestResponse['suggestions'][0]) => s.originalText + s.suggestedText;
+  const hasAnyHandled = handledKeys.size > 0;
 
   return (
     <div className="space-y-4">
@@ -133,141 +130,129 @@ export default function SuggestChangePanel({
         </div>
       )}
 
-      {response && (
-        <div className="space-y-4">
-          {response.suggestions.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Suggested Changes
-              </h4>
-              <div className="space-y-3">
-                {response.suggestions.map((suggestion, i) => {
-                  const key = suggestionKey(suggestion);
-                  const handled = handledSuggestions.has(key);
-                  const isPreviewing = previewSuggestionId === key;
+      {response && response.suggestions.length > 0 && (
+        <div className="space-y-3">
+          {response.suggestions.map((suggestion, i) => {
+            const key = suggestionKey(suggestion);
+            const handled = handledKeys.has(key);
+            const isDimmed = hasAnyHandled && !handled;
 
-                  return (
-                    <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
-                      <div className="max-h-64 overflow-auto">
-                        <ReactDiffViewer
-                          oldValue={suggestion.originalText}
-                          newValue={suggestion.suggestedText}
-                          splitView={false}
-                          styles={diffStyles}
-                          leftTitle="Original"
-                          rightTitle="Proposed"
-                          hideLineNumbers={true}
-                        />
-                      </div>
-                      <div className="p-3 border-t border-slate-200">
-                        <p className="text-sm text-slate-600 mb-3">{suggestion.rationale}</p>
-                        {handled ? (
-                          <p className="text-xs font-medium text-slate-500">
-                            {handledSuggestions.has(key) ? 'Handled' : ''}
-                          </p>
-                        ) : isPreviewing ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAccept(suggestion)}
-                              className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => handleReject(suggestion)}
-                              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
-                            >
-                              Reject
-                            </button>
-                            <button
-                              onClick={() => setPreviewSuggestionId(null)}
-                              className="px-3 py-1.5 text-sm font-medium text-slate-600 border border-slate-300 rounded hover:bg-slate-50"
-                            >
-                              Revert preview
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAccept(suggestion)}
-                              className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => handleReject(suggestion)}
-                              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
-                            >
-                              Reject
-                            </button>
-                            <button
-                              onClick={() => setPreviewSuggestionId(key)}
-                              className="px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-300 rounded hover:bg-blue-50"
-                            >
-                              Preview
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {response.alternatives.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Alternatives
-              </h4>
-              <div className="space-y-2">
-                {response.alternatives.map((alt, i) => (
-                  <details key={i} className="border border-slate-200 rounded-lg">
-                    <summary className="p-3 text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-50">
-                      {alt.text.slice(0, 80)}...
-                    </summary>
-                    <div className="px-3 pb-3 space-y-2">
-                      {alt.pros.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-emerald-600 mb-1">Pros</p>
-                          <ul className="space-y-0.5">
-                            {alt.pros.map((pro, j) => (
-                              <li key={j} className="text-sm text-slate-600 flex items-start gap-2">
-                                <span className="text-emerald-500 mt-0.5">•</span>
-                                {pro}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {alt.cons.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-amber-600 mb-1">Cons</p>
-                          <ul className="space-y-0.5">
-                            {alt.cons.map((con, j) => (
-                              <li key={j} className="text-sm text-slate-600 flex items-start gap-2">
-                                <span className="text-amber-500 mt-0.5">•</span>
-                                {con}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+            return (
+              <div
+                key={i}
+                className={`border border-slate-200 rounded-lg overflow-hidden transition-opacity ${
+                  isDimmed ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                <div className="max-h-64 overflow-auto">
+                  <ReactDiffViewer
+                    oldValue={suggestion.originalText}
+                    newValue={suggestion.suggestedText}
+                    splitView={false}
+                    styles={diffStyles}
+                    leftTitle="Original"
+                    rightTitle="Proposed"
+                    hideLineNumbers={true}
+                  />
+                </div>
+                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                  <p className="text-sm text-slate-600 mb-3">{suggestion.rationale}</p>
+                  {handled ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-emerald-600">Accepted</span>
                       <button
-                        onClick={() => handleUseAlternative(alt)}
-                        className="px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-300 rounded hover:bg-blue-50"
+                        onClick={() => {
+                          setHandledKeys((prev) => {
+                            const next = new Set(prev);
+                            next.delete(key);
+                            return next;
+                          });
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-700 underline"
                       >
-                        Use this alternative
+                        Choose a different option
                       </button>
                     </div>
-                  </details>
-                ))}
-              </div>
-            </div>
-          )}
+                  ) : isDimmed ? (
+                    <button
+                      onClick={() => setHandledKeys(new Set())}
+                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Use this instead
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAccept(suggestion)}
+                        className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleReject(suggestion)}
+                        className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-          {response.negotiationTips.length > 0 && (
+                {response.alternatives && response.alternatives.length > 0 && (
+                  <div className="border-t border-slate-200 px-3 py-2 bg-white">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Alternatives
+                    </p>
+                    <div className="space-y-2">
+                      {response.alternatives.map((alt, ai) => (
+                        <details key={ai} className="border border-slate-100 rounded-md">
+                          <summary className="p-2 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-50">
+                            {alt.text.slice(0, 100)}{alt.text.length > 100 ? '...' : ''}
+                          </summary>
+                          <div className="px-2 pb-2 space-y-1.5">
+                            {alt.pros.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-semibold text-emerald-600 mb-0.5">Pros</p>
+                                <ul className="space-y-0.5">
+                                  {alt.pros.map((pro, j) => (
+                                    <li key={j} className="text-xs text-slate-600 flex items-start gap-1.5">
+                                      <span className="text-emerald-500">•</span>
+                                      {pro}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {alt.cons.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-semibold text-amber-600 mb-0.5">Cons</p>
+                                <ul className="space-y-0.5">
+                                  {alt.cons.map((con, j) => (
+                                    <li key={j} className="text-xs text-slate-600 flex items-start gap-1.5">
+                                      <span className="text-amber-500">•</span>
+                                      {con}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleUseAlternative(suggestion, alt)}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                            >
+                              Use this alternative
+                            </button>
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {response.negotiationTips && response.negotiationTips.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                 Negotiation Tips
