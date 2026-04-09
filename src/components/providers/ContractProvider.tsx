@@ -11,99 +11,15 @@ import type {
   ParsedContract,
   ClauseChange,
   ContractState,
-  ContractAction,
+  ClauseNote,
+  ConversationThread,
+  ThreadMessage,
+  ContractVariable,
+  AuditEntry,
+  ContractLifecycleState,
   Clause,
 } from '@/types/contract';
-
-const initialState: ContractState = {
-  original: null,
-  current: null,
-  changes: [],
-  selectedClauseId: null,
-  isLoading: false,
-  error: null,
-};
-
-function contractReducer(state: ContractState, action: ContractAction): ContractState {
-  switch (action.type) {
-    case 'SET_CONTRACT':
-      return {
-        ...state,
-        original: action.payload,
-        current: action.payload,
-        isLoading: false,
-        error: null,
-      };
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload,
-      };
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false,
-      };
-    case 'SELECT_CLAUSE':
-      return {
-        ...state,
-        selectedClauseId: action.payload,
-      };
-    case 'APPLY_CHANGE': {
-      const change = action.payload;
-      if (!state.current) return state;
-
-      const updatedClauses = state.current.clauses.map((clause) => {
-        if (clause.id === change.clauseId) {
-          return {
-            ...clause,
-            text: change.suggestedText,
-          };
-        }
-        return clause;
-      });
-
-      // Find existing pending change and mark as accepted
-      const existingChangeIndex = state.changes.findIndex(
-        (c) => c.clauseId === change.clauseId && c.status === 'pending',
-      );
-
-      let updatedChanges: ClauseChange[];
-      if (existingChangeIndex >= 0) {
-        updatedChanges = state.changes.map((c, i) =>
-          i === existingChangeIndex ? { ...c, status: 'accepted' as const } : c,
-        );
-      } else {
-        updatedChanges = [...state.changes, { ...change, status: 'accepted' }];
-      }
-
-      return {
-        ...state,
-        current: {
-          ...state.current,
-          clauses: updatedClauses,
-        },
-        changes: updatedChanges,
-      };
-    }
-    case 'REJECT_CHANGE': {
-      const updatedChanges = state.changes.map((c) =>
-        c.clauseId === action.payload && c.status === 'pending'
-          ? { ...c, status: 'rejected' as const }
-          : c,
-      );
-      return {
-        ...state,
-        changes: updatedChanges,
-      };
-    }
-    case 'RESET':
-      return initialState;
-    default:
-      return state;
-  }
-}
+import { contractReducer, initialState } from '@/lib/reducer';
 
 interface ContractContextValue {
   state: ContractState;
@@ -112,10 +28,21 @@ interface ContractContextValue {
   setError: (error: string | null) => void;
   selectClause: (clauseId: string | null) => void;
   applyChange: (change: ClauseChange) => void;
-  rejectChange: (clauseId: string) => void;
+  rejectChange: (changeId: string) => void;
+  proposeChange: (change: ClauseChange) => void;
+  addClauseNote: (note: ClauseNote) => void;
+  removeClauseNote: (noteId: string) => void;
+  setLifecycleState: (state: ContractLifecycleState) => void;
+  addThread: (thread: ConversationThread) => void;
+  addThreadMessage: (threadId: string, message: ThreadMessage) => void;
+  resolveThread: (threadId: string) => void;
+  setVariable: (variable: ContractVariable) => void;
+  addAuditEntry: (entry: AuditEntry) => void;
   reset: () => void;
   getClauseById: (clauseId: string) => Clause | undefined;
   getChangesForClause: (clauseId: string) => ClauseChange[];
+  getNotesForClause: (clauseId: string) => ClauseNote[];
+  getThreadsForClause: (clauseId: string) => ConversationThread[];
 }
 
 const ContractContext = createContext<ContractContextValue | null>(null);
@@ -143,8 +70,44 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'APPLY_CHANGE', payload: change });
   }, []);
 
-  const rejectChange = useCallback((clauseId: string) => {
-    dispatch({ type: 'REJECT_CHANGE', payload: clauseId });
+  const rejectChange = useCallback((changeId: string) => {
+    dispatch({ type: 'REJECT_CHANGE', payload: changeId });
+  }, []);
+
+  const proposeChange = useCallback((change: ClauseChange) => {
+    dispatch({ type: 'PROPOSE_CHANGE', payload: change });
+  }, []);
+
+  const addClauseNote = useCallback((note: ClauseNote) => {
+    dispatch({ type: 'ADD_CLAUSE_NOTE', payload: note });
+  }, []);
+
+  const removeClauseNote = useCallback((noteId: string) => {
+    dispatch({ type: 'REMOVE_CLAUSE_NOTE', payload: noteId });
+  }, []);
+
+  const setLifecycleState = useCallback((lifecycleState: ContractLifecycleState) => {
+    dispatch({ type: 'SET_LIFECYCLE_STATE', payload: lifecycleState });
+  }, []);
+
+  const addThread = useCallback((thread: ConversationThread) => {
+    dispatch({ type: 'ADD_THREAD', payload: thread });
+  }, []);
+
+  const addThreadMessage = useCallback((threadId: string, message: ThreadMessage) => {
+    dispatch({ type: 'ADD_THREAD_MESSAGE', payload: { threadId, message } });
+  }, []);
+
+  const resolveThread = useCallback((threadId: string) => {
+    dispatch({ type: 'RESOLVE_THREAD', payload: threadId });
+  }, []);
+
+  const setVariable = useCallback((variable: ContractVariable) => {
+    dispatch({ type: 'SET_VARIABLE', payload: variable });
+  }, []);
+
+  const addAuditEntry = useCallback((entry: AuditEntry) => {
+    dispatch({ type: 'ADD_AUDIT_ENTRY', payload: entry });
   }, []);
 
   const reset = useCallback(() => {
@@ -157,6 +120,12 @@ export function ContractProvider({ children }: { children: ReactNode }) {
   const getChangesForClause = (clauseId: string): ClauseChange[] =>
     state.changes.filter((c) => c.clauseId === clauseId);
 
+  const getNotesForClause = (clauseId: string): ClauseNote[] =>
+    state.notes.filter((n) => n.clauseId === clauseId);
+
+  const getThreadsForClause = (clauseId: string): ConversationThread[] =>
+    state.threads.filter((t) => t.clauseId === clauseId);
+
   const value: ContractContextValue = {
     state,
     setContract,
@@ -165,9 +134,20 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     selectClause,
     applyChange,
     rejectChange,
+    proposeChange,
+    addClauseNote,
+    removeClauseNote,
+    setLifecycleState,
+    addThread,
+    addThreadMessage,
+    resolveThread,
+    setVariable,
+    addAuditEntry,
     reset,
     getClauseById,
     getChangesForClause,
+    getNotesForClause,
+    getThreadsForClause,
   };
 
   return (
