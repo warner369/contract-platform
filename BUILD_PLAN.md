@@ -6,9 +6,7 @@
 
 ## Dependencies to Add
 
-```bash
-npm install react-diff-viewer-continued nanoid docx
-```
+> **Already installed.** The following packages are present in the project. Listed here for reference only — no need to run `npm install`.
 
 | Package | Why |
 |---------|-----|
@@ -184,6 +182,8 @@ const diffStyles = {
 - `ClauseChange.status` starts as 'pending' (set by PROPOSE_CHANGE), then transitions to 'accepted'/'rejected'.
 - The `/api/suggest-change` endpoint already works. No backend changes needed.
 - Preview is local UI state — use `useState` for a `previewText: string | null` that temporarily overrides the displayed clause text. Do NOT dispatch to state for preview.
+- **Known inconsistency**: `SuggestChangePanel.handleReject` creates the change with `status: 'rejected'` instead of `'pending'` before calling `rejectChange`. The reducer's `PROPOSE_CHANGE` sets status to 'pending' and `REJECT_CHANGE` transitions it. The current code works because `rejectChange` uses the change ID (not status), but the initial `status: 'rejected'` on the PROPOSE_CHANGE payload is technically incorrect. Low priority — the change gets properly rejected regardless.
+- **Preview not yet implemented**: The plan described a Preview button that temporarily shows suggested text in context. This was deferred in favor of the diff-viewer approach (changes are visible inline in the diff card). Consider adding a full-clause preview in a future iteration.
 
 ---
 
@@ -458,11 +458,10 @@ Each row:
 
 ### 7.3 — Clause Card Enhancements
 
-- [ ] Edit `src/components/ContractView.tsx`
-  - **Modified indicator**: If `state.original` and `state.current` differ for this clause, show a small "Modified" pill (blue, subtle)
-  - **Change count pill**: From `getChangesForClause(clause.id)`, show a pill with the count and status color (pending=amber, accepted=emerald, rejected=slate-strikethrough)
-  - **Thread count icon**: From `getThreadsForClause(clause.id)`, show a small chat bubble icon with count if > 0
-  - **Notes count**: From `getNotesForClause(clause.id)`, show a small note icon with count if > 0
+- [x] ~~**Modified indicator**:~~ Already implemented in ContractView.tsx — blue "Modified" pill shown when original text differs from current text (lines 91-128)
+- [x] ~~**Change count pills**:~~ Already implemented in ContractView.tsx — pending/accepted/rejected count badges (lines 88-143)
+- [ ] **Thread count icon**: From `getThreadsForClause(clause.id)`, show a small chat bubble icon with count if > 0
+- [ ] **Notes count**: From `getNotesForClause(clause.id)`, show a small note icon with count if > 0
 
 **Learning:**
 
@@ -494,7 +493,7 @@ Each row:
 | 6.2 VariablesPanel | ⬜ | 2 (new + edit ClauseDetailPanel) | Notion property rows |
 | 6.3 Variable Highlighting | ⬜ | 1 (edit ContractView) | Temporary blue pulse on affected clauses |
 | 7.2 Text Search | ⬜ | 1 (edit ContractView) | Client-side string filter |
-| 7.3 Card Enhancements | ⬜ | 1 (edit ContractView) | Status/counts indicator row |
+| 7.3 Card Enhancements | 🟡 partial | 1 (edit ContractView) | Modified + change pills ✅; thread/notes icons remain |
 
 ### UX Improvements (added during implementation)
 
@@ -504,7 +503,7 @@ Each row:
 | API response caches | ✅ | 2 (edit Provider + ClauseDetailPanel) | Prevents re-fetching analysis/suggestions on tab switch |
 | Hidden pattern for tabs | ✅ | 1 (edit ContractPageClient) | Preserves component state on Clauses↔Changes switch |
 | Sticky tab bar | ✅ | 1 (edit ContractPageClient + page) | Tab bar stays visible when scrolling |
-| Sidebar scroll constraint | ✅ | 1 (edit ContractView) | Detail panel scrolls independently within viewport |
+| ~~Sidebar scroll constraint~~ | ✅ → superseded | 1 (edit ContractView) | Replaced by inline accordion layout — no longer uses sidebar |
 | ClauseDetailPanel sections | ✅ | 1 (rewrite ClauseDetailPanel) | Stacked collapsible sections instead of one long scroll |
 | SuggestChangePanel cache | ✅ | 1 (edit SuggestChangePanel) | Uses suggestionCache from provider to avoid re-fetching |
 | Inline accordion layout | ✅ | 1 (rewrite ContractView) | Detail panel expands below clause card instead of sidebar |
@@ -524,7 +523,7 @@ After completing all tasks above, the prototype will cover these PRD requirement
 | PRD Section | Requirement | Covered By | Status |
 |-------------|-------------|------------|--------|
 | 3.1 | Lifecycle states | 6.1 LifecycleBadge | ⬜ |
-| 4.2 | Parsing confidence flagging | 4.2 Confidence Indicator | ⬜ |
+| 4.2 | Parsing confidence flagging | 4.2 Confidence Indicator | ✅ |
 | 5.1 | Plain-language explanations | Already built | ✅ |
 | 5.1 | Risk flagging | Already built | ✅ |
 | 5.1 | Dependency mapping | Already built | ✅ |
@@ -537,7 +536,7 @@ After completing all tasks above, the prototype will cover these PRD requirement
 | 8.1 | Drift from baseline | 3.1 ComparisonView | ⬜ |
 | 8.2 | Cross-reference management | Already built (stable IDs) | ✅ |
 | 9 | Text search | 7.2 Text Search | ⬜ |
-| 11.1 | Audit trail | 7.1 Audit Automation | ⬜ |
+| 11.1 | Audit trail | 7.1 Audit Automation | ✅ |
 
 ### Explicitly Deferred (out of scope for prototype per AGENTS.md + PRD v1)
 
