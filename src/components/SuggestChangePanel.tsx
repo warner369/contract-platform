@@ -146,8 +146,8 @@ export default function SuggestChangePanel({
               >
                 <div className="max-h-64 overflow-auto">
                   <ReactDiffViewer
-                    oldValue={suggestion.originalText}
-                    newValue={suggestion.suggestedText}
+                    oldValue={String(suggestion.originalText ?? '')}
+                    newValue={String(suggestion.suggestedText ?? '')}
                     splitView={false}
                     styles={diffStyles}
                     leftTitle="Original"

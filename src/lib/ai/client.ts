@@ -31,6 +31,21 @@ export async function generateCompletion(
   return textBlock.text;
 }
 
+function coerceJsonStrings(value: unknown): unknown {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(coerceJsonStrings);
+  if (typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = coerceJsonStrings(val);
+    }
+    return result;
+  }
+  return String(value);
+}
+
 export async function generateJsonCompletion<T>(
   systemPrompt: string,
   userPrompt: string,
@@ -45,7 +60,8 @@ export async function generateJsonCompletion<T>(
   const jsonStr = jsonMatch[1] || response;
 
   try {
-    return JSON.parse(jsonStr.trim()) as T;
+    const parsed = JSON.parse(jsonStr.trim()) as T;
+    return coerceJsonStrings(parsed) as T;
   } catch {
     console.error('Failed to parse JSON response:', response);
     throw new Error('Invalid JSON response from Claude');

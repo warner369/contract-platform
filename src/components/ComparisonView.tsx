@@ -70,7 +70,7 @@ export default function ComparisonView() {
                   </div>
                   {change.status !== 'rejected' && (
                     <p className="text-slate-600 mt-1 line-clamp-2">
-                      {change.suggestedText}
+                      {String(change.suggestedText ?? '')}
                     </p>
                   )}
                 </div>
@@ -112,7 +112,7 @@ export default function ComparisonView() {
                       Clause {originalClause.number}: {originalClause.title}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700">{originalClause.text}</p>
+                  <p className="text-sm text-slate-700">{String(originalClause.text ?? '')}</p>
                 </div>
 
                 {/* Current */}
@@ -125,7 +125,7 @@ export default function ComparisonView() {
                       Clause {currentClause.number}: {currentClause.title}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700">{currentClause.text}</p>
+                  <p className="text-sm text-slate-700">{String(currentClause.text ?? '')}</p>
                 </div>
               </div>
             );
