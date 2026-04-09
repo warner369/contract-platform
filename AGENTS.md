@@ -19,6 +19,10 @@ Contract review and collaboration platform for SMBs: upload contracts, parse int
 npm run dev          # Development server (Turbopack)
 npm run build        # Next.js production build
 npm run lint         # ESLint check
+npm run test         # Vitest in watch mode
+npm run test:run     # Vitest single run (CI-friendly)
+npm run test:coverage # Vitest with coverage
+npm run verify       # lint + test:run + build
 npm run build:cf     # Build for Cloudflare Workers (Linux/CI only)
 npm run preview      # Local Cloudflare Workers preview (wrangler dev)
 ```
@@ -50,12 +54,22 @@ src/
 │   ├── ai/
 │   │   ├── prompts.ts                    # System prompts + prompt factories
 │   │   └── client.ts                     # Anthropic SDK client + generateJsonCompletion
-│   └── parsers/
-│       ├── pdf.ts                         # Stub — throws error (PDF handled client-side)
-│       ├── docx.ts                        # DOCX text extraction (mammoth)
-│       └── index.ts                       # Parser router by MIME type
-└── types/
-    └── contract.ts                        # All TypeScript interfaces and type aliases
+│   ├── parsers/
+│   │   ├── pdf.ts                         # Stub — throws error (PDF handled client-side)
+│   │   ├── docx.ts                        # DOCX text extraction (mammoth)
+│   │   └── index.ts                       # Parser router by MIME type
+│   └── reducer.ts                         # Contract reducer (pure function, extracted from Provider)
+├── __tests__/
+│   ├── setup.ts                          # Vitest global setup (jest-dom, sessionStorage mock)
+│   ├── unit/
+│   │   ├── contractReducer.test.ts       # Reducer logic tests
+│   │   ├── prompts.test.ts               # AI prompt factory tests
+│   │   └── parsers.test.ts               # Parser routing tests
+│   └── components/
+│       └── UploadArea.test.tsx            # Upload UI interaction tests
+├── types/
+│   └── contract.ts                        # All TypeScript interfaces and type aliases
+└── vitest.config.ts                       # Vitest configuration (jsdom, React plugin, tsconfig paths)
 ```
 
 ## Architecture
@@ -78,7 +92,7 @@ Uploaded contract data passes from the landing page (`UploadForm`) to `/contract
 
 ### State Management
 
-`ContractProvider` uses `useReducer` with actions: `SET_CONTRACT`, `SET_LOADING`, `SET_ERROR`, `SELECT_CLAUSE`, `APPLY_CHANGE`, `REJECT_CHANGE`, `RESET`. Selector helpers: `getClauseById`, `getChangesForClause`.
+`ContractProvider` uses `useReducer` (with pure reducer in `lib/reducer.ts`) with actions: `SET_CONTRACT`, `SET_LOADING`, `SET_ERROR`, `SELECT_CLAUSE`, `APPLY_CHANGE`, `REJECT_CHANGE`, `PROPOSE_CHANGE`, `ADD_CLAUSE_NOTE`, `REMOVE_CLAUSE_NOTE`, `SET_LIFECYCLE_STATE`, `ADD_THREAD`, `ADD_THREAD_MESSAGE`, `RESOLVE_THREAD`, `SET_VARIABLE`, `ADD_AUDIT_ENTRY`, `RESET`. Selector helpers: `getClauseById`, `getChangesForClause`, `getNotesForClause`, `getThreadsForClause`.
 
 ## Code Standards
 
@@ -100,6 +114,8 @@ Uploaded contract data passes from the landing page (`UploadForm`) to `/contract
 - All AI-suggested changes MUST be proposals requiring explicit user acceptance
 - User modifications are tracked but never auto-applied
 - `ANTHROPIC_API_KEY` must be set in `.env.local` for dev and as a Cloudflare Workers secret for deployment
+- **`esbuild` must remain a direct devDependency** — `@opennextjs/cloudflare` uses `esbuild` at the top level during its build. If `esbuild` is only nested (e.g. under `@opennextjs/aws`), the CF build fails with `ERR_MODULE_NOT_FOUND: Cannot find package 'esbuild'`. Do NOT remove `esbuild` from `devDependencies`.
+- The `REJECT_CHANGE` action uses change `id` (not `clauseId`) to identify the change to reject, since multiple changes can exist for the same clause.
 
 ## Deployment
 
@@ -118,9 +134,15 @@ In the Cloudflare dashboard:
 - **`ComparisonView.tsx` is orphaned**: Fully implemented but never imported or rendered. Needs to be wired into the contract page.
 - **No suggest-change UI**: The `/api/suggest-change` endpoint exists but no component calls it.
 - **No accept/reject UI**: `ContractProvider` has `applyChange`/`rejectChange` actions but no UI buttons trigger them.
+- **`npm install` may need `--legacy-peer-deps`**: Due to a version conflict between `esbuild@0.25.4` (needed by `@opennextjs/aws`) and `esbuild@^0.27` (optional peer dep of `vite@8`), running `npm install` without `--legacy-peer-deps` will fail. This is safe — the conflicting peer is optional and `esbuild@0.25.4` works for both Vitest (which doesn't need esbuild at runtime) and Cloudflare builds.
 
 ## TODO
 
+- [x] Extract `contractReducer` to `lib/reducer.ts` for testability
+- [x] Add testing infrastructure (Vitest + React Testing Library + jsdom)
+- [x] Extend types for context layers, variables, threads, lifecycle, audit
+- [x] Add reducer actions: PROPOSE_CHANGE, ADD/REMOVE_CLAUSE_NOTE, SET_LIFECYCLE_STATE, ADD_THREAD, ADD_THREAD_MESSAGE, RESOLVE_THREAD, SET_VARIABLE, ADD_AUDIT_ENTRY
+- [x] Add ContractProvider dispatchers and derived selectors for new actions
 - [ ] Implement `ClauseDetail.tsx` — extract from inline in ContractView, add suggest-change UI
 - [ ] Wire up `ComparisonView` — import and render in the contract page
 - [ ] Wire suggest-change UI — add intent input + proposal accept/reject flow
