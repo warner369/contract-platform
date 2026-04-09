@@ -26,7 +26,7 @@ export default function SuggestChangePanel({
   clause: Clause;
   contractTitle: string;
 }) {
-  const { proposeChange, applyChange, rejectChange } = useContract();
+  const { proposeChange, applyChange, rejectChange, getSuggestionCache, setSuggestionCache } = useContract();
   const [intent, setIntent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +38,15 @@ export default function SuggestChangePanel({
     if (!intent.trim()) return;
     setIsLoading(true);
     setError(null);
+
+    const cacheKey = `${clause.id}:${intent.trim()}`;
+    const cached = getSuggestionCache(cacheKey);
+    if (cached) {
+      setResponse(cached);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/suggest-change', {
         method: 'POST',
@@ -46,6 +55,7 @@ export default function SuggestChangePanel({
       });
       if (!res.ok) throw new Error('Failed to suggest changes');
       const data: SuggestResponse = await res.json();
+      setSuggestionCache(cacheKey, data);
       setResponse(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

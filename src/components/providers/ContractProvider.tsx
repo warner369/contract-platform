@@ -5,6 +5,7 @@ import {
   useContext,
   useReducer,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -18,6 +19,8 @@ import type {
   AuditEntry,
   ContractLifecycleState,
   Clause,
+  ClauseAnalysis,
+  SuggestResponse,
 } from '@/types/contract';
 import { contractReducer, initialState } from '@/lib/reducer';
 import { withAudit } from '@/lib/audit';
@@ -44,12 +47,18 @@ interface ContractContextValue {
   getChangesForClause: (clauseId: string) => ClauseChange[];
   getNotesForClause: (clauseId: string) => ClauseNote[];
   getThreadsForClause: (clauseId: string) => ConversationThread[];
+  getAnalysisCache: (clauseId: string) => ClauseAnalysis | undefined;
+  setAnalysisCache: (clauseId: string, analysis: ClauseAnalysis) => void;
+  getSuggestionCache: (key: string) => SuggestResponse | undefined;
+  setSuggestionCache: (key: string, response: SuggestResponse) => void;
 }
 
 const ContractContext = createContext<ContractContextValue | null>(null);
 
 export function ContractProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(contractReducer, initialState);
+  const analysisCache = useRef(new Map<string, ClauseAnalysis>());
+  const suggestionCache = useRef(new Map<string, SuggestResponse>());
 
   const setContract = useCallback((contract: ParsedContract) => {
     dispatch({ type: 'SET_CONTRACT', payload: contract });
@@ -127,6 +136,22 @@ export function ContractProvider({ children }: { children: ReactNode }) {
   const getThreadsForClause = (clauseId: string): ConversationThread[] =>
     state.threads.filter((t) => t.clauseId === clauseId);
 
+  const getAnalysisCache = useCallback((clauseId: string): ClauseAnalysis | undefined => {
+    return analysisCache.current.get(clauseId);
+  }, []);
+
+  const setAnalysisCache = useCallback((clauseId: string, analysis: ClauseAnalysis): void => {
+    analysisCache.current.set(clauseId, analysis);
+  }, []);
+
+  const getSuggestionCache = useCallback((key: string): SuggestResponse | undefined => {
+    return suggestionCache.current.get(key);
+  }, []);
+
+  const setSuggestionCache = useCallback((key: string, response: SuggestResponse): void => {
+    suggestionCache.current.set(key, response);
+  }, []);
+
   const value: ContractContextValue = {
     state,
     setContract,
@@ -149,6 +174,10 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     getChangesForClause,
     getNotesForClause,
     getThreadsForClause,
+    getAnalysisCache,
+    setAnalysisCache,
+    getSuggestionCache,
+    setSuggestionCache,
   };
 
   return (

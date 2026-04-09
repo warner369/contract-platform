@@ -3,7 +3,45 @@
 import { useEffect, useState } from 'react';
 import { useContract } from '@/components/providers/ContractProvider';
 import SuggestChangePanel from './SuggestChangePanel';
+import ProactiveSuggestions from './ProactiveSuggestions';
 import type { Clause, ClauseAnalysis } from '@/types/contract';
+
+function Section({
+  title,
+  defaultOpen = true,
+  count,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-slate-200 pt-3 mt-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 w-full text-left"
+      >
+        <svg
+          className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+        </svg>
+        {title}
+        {count !== undefined && count > 0 && (
+          <span className="text-[10px] font-bold bg-slate-200 text-slate-600 rounded-full px-1.5 py-0.5">
+            {count}
+          </span>
+        )}
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
 
 export default function ClauseDetailPanel({
   clause,
@@ -12,13 +50,19 @@ export default function ClauseDetailPanel({
   clause: Clause;
   contractTitle: string;
 }) {
-  const { selectClause } = useContract();
+  const { selectClause, getAnalysisCache, setAnalysisCache } = useContract();
   const [analysis, setAnalysis] = useState<ClauseAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSuggest, setShowSuggest] = useState(false);
+  const [showManualSuggest, setShowManualSuggest] = useState(false);
 
   useEffect(() => {
+    const cached = getAnalysisCache(clause.id);
+    if (cached) {
+      setAnalysis(cached);
+      return;
+    }
+
     async function fetchAnalysis() {
       setIsLoading(true);
       setError(null);
@@ -33,6 +77,7 @@ export default function ClauseDetailPanel({
         }
         const data = await response.json();
         setAnalysis(data);
+        setAnalysisCache(clause.id, data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -41,7 +86,7 @@ export default function ClauseDetailPanel({
     }
 
     fetchAnalysis();
-  }, [clause.id, contractTitle]);
+  }, [clause.id, contractTitle, getAnalysisCache, setAnalysisCache]);
 
   return (
     <div className="p-6 rounded-xl border border-slate-200 bg-white">
@@ -63,7 +108,6 @@ export default function ClauseDetailPanel({
         </button>
       </div>
 
-      {/* Risk Badge */}
       <div
         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium mb-4 ${
           clause.riskLevel === 'high'
@@ -94,21 +138,13 @@ export default function ClauseDetailPanel({
           <p className="text-sm text-red-600">{error}</p>
         </div>
       ) : analysis ? (
-        <div className="space-y-4">
-          {/* Explanation */}
-          <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              What this means
-            </h4>
+        <>
+          <Section title="What this means" defaultOpen={true}>
             <p className="text-sm text-slate-700">{analysis.explanation}</p>
-          </div>
+          </Section>
 
-          {/* Risks */}
           {analysis.risks.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Potential concerns
-              </h4>
+            <Section title="Potential concerns" defaultOpen={true} count={analysis.risks.length}>
               <ul className="space-y-1">
                 {analysis.risks.map((risk, i) => (
                   <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
@@ -117,15 +153,11 @@ export default function ClauseDetailPanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Section>
           )}
 
-          {/* Opportunities */}
           {analysis.opportunities.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Opportunities
-              </h4>
+            <Section title="Opportunities" defaultOpen={true} count={analysis.opportunities.length}>
               <ul className="space-y-1">
                 {analysis.opportunities.map((opp, i) => (
                   <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
@@ -134,15 +166,28 @@ export default function ClauseDetailPanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Section>
           )}
 
-          {/* Related Clauses */}
+          <Section title="Suggested improvements" defaultOpen={true}>
+            <ProactiveSuggestions clause={clause} contractTitle={contractTitle} analysis={analysis} />
+            <div className="mt-3">
+              <button
+                onClick={() => setShowManualSuggest(!showManualSuggest)}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                {showManualSuggest ? 'Hide manual input' : 'Or describe what you want to change'}
+              </button>
+              {showManualSuggest && (
+                <div className="mt-2">
+                  <SuggestChangePanel clause={clause} contractTitle={contractTitle} />
+                </div>
+              )}
+            </div>
+          </Section>
+
           {analysis.relatedClauses.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Related clauses
-              </h4>
+            <Section title="Related clauses" defaultOpen={false} count={analysis.relatedClauses.length}>
               <ul className="space-y-1">
                 {analysis.relatedClauses.map((rel, i) => (
                   <li key={i} className="text-sm text-slate-600">
@@ -150,15 +195,11 @@ export default function ClauseDetailPanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Section>
           )}
 
-          {/* Recommendations */}
           {analysis.recommendations.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Considerations
-              </h4>
+            <Section title="Considerations" defaultOpen={false} count={analysis.recommendations.length}>
               <ul className="space-y-1">
                 {analysis.recommendations.map((rec, i) => (
                   <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
@@ -167,32 +208,10 @@ export default function ClauseDetailPanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Section>
           )}
-         </div>
+        </>
       ) : null}
-
-      {/* Suggest Changes Section */}
-      <div className="mt-4 border-t border-slate-200 pt-4">
-        <button
-          onClick={() => setShowSuggest(!showSuggest)}
-          className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
-        >
-          <svg
-            className={`w-4 h-4 transition-transform ${showSuggest ? 'rotate-90' : ''}`}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-          </svg>
-          Suggest changes
-        </button>
-        {showSuggest && (
-          <div className="mt-3">
-            <SuggestChangePanel clause={clause} contractTitle={contractTitle} />
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -169,7 +169,7 @@ export default function ContractView() {
 
         {/* Clause Detail Panel */}
         <div className="lg:col-span-1">
-          <div className="sticky top-20">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
             {state.selectedClauseId ? (
               <ClauseDetailPanel
                 clause={current.clauses.find((c) => c.id === state.selectedClauseId)!}

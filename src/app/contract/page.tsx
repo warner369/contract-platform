@@ -6,7 +6,7 @@ export default function ContractPage() {
   return (
     <ContractProvider>
       <div className="flex flex-col min-h-screen bg-[#f8f7f4]">
-        <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+        <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
           <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
             <Link href="/" className="text-base font-semibold text-slate-900 tracking-tight hover:text-slate-700">
               Clause
@@ -19,7 +19,7 @@ export default function ContractPage() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-7xl mx-auto px-6 pt-4">
+        <main className="flex-1 max-w-7xl mx-auto px-6 pt-4 w-full">
           <ContractPageClient />
         </main>
       </div>

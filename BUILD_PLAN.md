@@ -495,6 +495,18 @@ Each row:
 | 7.2 Text Search | ⬜ | 1 (edit ContractView) | Client-side string filter |
 | 7.3 Card Enhancements | ⬜ | 1 (edit ContractView) | Status/counts indicator row |
 
+### UX Improvements (added during implementation)
+
+| Task | Status | Files Changed | What it fixes |
+|------|--------|---------------|---------------|
+| Proactive suggestions | ✅ | 1 (new ProactiveSuggestions.tsx) | Auto-generates suggestions from analysis.recommendations |
+| API response caches | ✅ | 2 (edit Provider + ClauseDetailPanel) | Prevents re-fetching analysis/suggestions on tab switch |
+| Hidden pattern for tabs | ✅ | 1 (edit ContractPageClient) | Preserves component state on Clauses↔Changes switch |
+| Sticky tab bar | ✅ | 1 (edit ContractPageClient + page) | Tab bar stays visible when scrolling |
+| Sidebar scroll constraint | ✅ | 1 (edit ContractView) | Detail panel scrolls independently within viewport |
+| ClauseDetailPanel sections | ✅ | 1 (rewrite ClauseDetailPanel) | Stacked collapsible sections instead of one long scroll |
+| SuggestChangePanel cache | ✅ | 1 (edit SuggestChangePanel) | Uses suggestionCache from provider to avoid re-fetching |
+
 ---
 
 ## PRD Coverage Tracker
@@ -508,8 +520,8 @@ After completing all tasks above, the prototype will cover these PRD requirement
 | 5.1 | Plain-language explanations | Already built | ✅ |
 | 5.1 | Risk flagging | Already built | ✅ |
 | 5.1 | Dependency mapping | Already built | ✅ |
-| 5.1 | Intent-based editing | 2.1 + 2.2 SuggestChangePanel | ⬜ |
-| 5.1 | Opportunities display | 4.3 Render Opportunities | ⬜ |
+| 5.1 | Intent-based editing | 2.1 + 2.2 SuggestChangePanel + ProactiveSuggestions | ✅ |
+| 5.1 | Opportunities display | 4.3 Render Opportunities | ✅ |
 | 6.1 | Context layers (notes) | 4.1 ClauseNotes | ⬜ |
 | 6.2 | Clause-level threads | 5.1 ThreadPanel | ⬜ |
 | 7.2 | Configurable variables | 6.2 VariablesPanel | ⬜ |
