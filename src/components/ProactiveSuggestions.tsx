@@ -137,13 +137,14 @@ export default function ProactiveSuggestions({
       )}
 
       {groups.map((group, gi) => {
-        if (!group.response || group.response.suggestions.length === 0) return null;
+        const resp = group.response;
+        if (!resp || resp.suggestions.length === 0) return null;
 
         return (
           <div key={gi}>
             <p className="text-xs text-slate-400 italic mb-2">Based on: &ldquo;{group.intent}&rdquo;</p>
 
-            {group.response.suggestions.map((suggestion, si) => {
+            {resp.suggestions.map((suggestion, si) => {
               const key = suggestion.originalText + suggestion.suggestedText;
               const handled = handledKeys.has(key);
               const isDimmed = hasAnyHandled && !handled;
@@ -209,13 +210,13 @@ export default function ProactiveSuggestions({
                     )}
                   </div>
 
-                  {group.response.alternatives && group.response.alternatives.length > 0 && (
+                  {resp.alternatives && resp.alternatives.length > 0 && (
                     <div className="border-t border-slate-200 px-3 py-2 bg-white">
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                         Alternatives
                       </p>
                       <div className="space-y-2">
-                        {group.response.alternatives.map((alt, ai) => (
+                        {resp.alternatives.map((alt, ai) => (
                           <details key={ai} className="border border-slate-100 rounded-md">
                             <summary className="p-2 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-50">
                               {alt.text.slice(0, 100)}{alt.text.length > 100 ? '...' : ''}
@@ -263,13 +264,13 @@ export default function ProactiveSuggestions({
               );
             })}
 
-            {group.response.negotiationTips && group.response.negotiationTips.length > 0 && (
+            {resp.negotiationTips && resp.negotiationTips.length > 0 && (
               <div className="mt-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Negotiation Tips
                 </p>
                 <ul className="space-y-0.5">
-                  {group.response.negotiationTips.map((tip, i) => (
+                  {resp.negotiationTips.map((tip, i) => (
                     <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
                       <span className="text-blue-500 mt-0.5">→</span>
                       {tip}
