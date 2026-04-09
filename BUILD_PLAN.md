@@ -7,13 +7,14 @@
 ## Dependencies to Add
 
 ```bash
-npm install react-diff-viewer-continued nanoid
+npm install react-diff-viewer-continued nanoid docx
 ```
 
 | Package | Why |
 |---------|-----|
 | `react-diff-viewer-continued` | Split/unified diff rendering with word-level highlighting. Theming via CSS-in-JS that maps to Tailwind palette. Used in `ComparisonView` upgrade and `SuggestChangePanel`. |
 | `nanoid` | Tiny, URL-safe ID generator for client-side entity creation (notes, threads, changes, audit entries). |
+| `docx` | Generate Word DOCX documents with tracked changes (redline/strikeout). Used in `exportContractToDocx` for client-side export. |
 
 ---
 
@@ -506,6 +507,9 @@ Each row:
 | Sidebar scroll constraint | ✅ | 1 (edit ContractView) | Detail panel scrolls independently within viewport |
 | ClauseDetailPanel sections | ✅ | 1 (rewrite ClauseDetailPanel) | Stacked collapsible sections instead of one long scroll |
 | SuggestChangePanel cache | ✅ | 1 (edit SuggestChangePanel) | Uses suggestionCache from provider to avoid re-fetching |
+| Inline accordion layout | ✅ | 1 (rewrite ContractView) | Detail panel expands below clause card instead of sidebar |
+| Related clauses formatting | ✅ | 1 (edit ClauseDetailPanel) | Numbered list with clickable clause IDs |
+| Tracked-changes DOCX export | ✅ | 3 (new export.ts + ExportButton.tsx + edit page) | Downloads Word doc with redline for accepted/pending changes |
 
 ---
 
@@ -538,7 +542,7 @@ After completing all tasks above, the prototype will cover these PRD requirement
 - Template creation from uploaded contracts (PRD 7.1)
 - Approval workflows (PRD 10)
 - Send to my lawyer (PRD 5.3)
-- Clean PDF generation / finalisation (PRD 3.4)
+- Clean PDF generation / finalisation (PRD 3.4) — partially addressed: DOCX export with tracked changes exists, but does not preserve original document formatting
 - Related contracts / addenda (PRD 3.5)
 - Notifications / email (PRD 13.2)
 - Jurisdiction input in UI (PRD 5.2) — `userContext` param exists on API
