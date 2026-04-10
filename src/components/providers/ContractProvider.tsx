@@ -55,8 +55,13 @@ interface ContractContextValue {
 
 const ContractContext = createContext<ContractContextValue | null>(null);
 
-export function ContractProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(contractReducer, initialState);
+interface ContractProviderProps {
+  children: ReactNode;
+  initialState?: ContractState;
+}
+
+export function ContractProvider({ children, initialState: initial }: ContractProviderProps) {
+  const [state, dispatch] = useReducer(contractReducer, initial ?? initialState);
   const analysisCache = useRef(new Map<string, ClauseAnalysis>());
   const suggestionCache = useRef(new Map<string, SuggestResponse>());
 

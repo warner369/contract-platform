@@ -11,6 +11,11 @@ routes = [
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "contract-platform-db"
+database_id = "a24eba72-d3d4-4d89-a26a-e673fca893e0"
+
 [observability]
 [observability.logs]
 enabled = true

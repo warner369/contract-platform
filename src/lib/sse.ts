@@ -128,8 +128,8 @@ export async function fetchSSE<T>(
 
   // Fallback: non-SSE response (e.g., validation error)
   if (!response.ok) {
-    const data = await response.json().catch(() => ({ error: `Error: ${response.status}` }));
-    throw new Error(data.error || `Error: ${response.status}`);
+    const data = (await response.json().catch(() => ({ error: `Error: ${response.status}` }))) as Record<string, unknown>;
+    throw new Error((data.error as string) || `Error: ${response.status}`);
   }
 
   return response.json();

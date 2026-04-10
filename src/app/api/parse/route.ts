@@ -67,7 +67,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         send('complete', 'Analysis complete', contract);
       });
     } else if (contentType.includes('application/json')) {
-      const body = await request.json();
+      const body = (await request.json()) as { text?: string };
       if (!body.text || typeof body.text !== 'string') {
         return sseError('No text provided in request body', 400);
       }

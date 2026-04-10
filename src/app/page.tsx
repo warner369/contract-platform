@@ -1,4 +1,9 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import UploadForm from '@/components/UploadForm';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 function ShieldIcon() {
   return (
@@ -43,13 +48,37 @@ const features = [
 ];
 
 export default function HomePage() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f7f4]">
+        <div className="text-sm text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f8f7f4]">
       {/* Nav */}
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-base font-semibold text-slate-900 tracking-tight">Clause</span>
-          <span className="text-xs text-slate-400 font-medium px-2.5 py-1 bg-slate-100 rounded-full">Prototype</span>
+          <div className="flex items-center gap-3">
+            <a href="/login" className="text-sm text-slate-500 hover:text-slate-700">Sign in</a>
+            <a href="/register" className="text-xs font-medium px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800">Create account</a>
+          </div>
         </div>
       </header>
 
@@ -76,7 +105,7 @@ export default function HomePage() {
             </p>
             <UploadForm />
             <p className="text-xs text-slate-400 mt-4">
-              PDF, Word (.docx), or plain text · Processed securely · Nothing stored
+              PDF, Word (.docx), or plain text · Processed securely · Stored in your account
             </p>
           </div>
         </section>
@@ -125,7 +154,7 @@ export default function HomePage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
           <span className="text-sm font-semibold text-slate-900">Clause</span>
-          <span className="text-xs text-slate-400">Prototype — not legal advice</span>
+          <span className="text-xs text-slate-400">AI-powered contract review</span>
         </div>
       </footer>
     </div>

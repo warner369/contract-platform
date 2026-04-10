@@ -137,7 +137,7 @@ export default function ClauseDetailPanel({
         if (!response.ok) {
           throw new Error('Failed to analyse clause');
         }
-        const data = await response.json();
+        const data = (await response.json()) as ClauseAnalysis;
         setAnalysis(data);
         setAnalysisCache(clause.id, data);
       }

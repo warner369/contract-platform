@@ -31,6 +31,7 @@ const PARSE_PHASES = [
   { phase: 'extracting', label: 'Extracting text from document...', icon: 'spinner' as const },
   { phase: 'analysing', label: 'Analyzing contract structure...', icon: 'spinner' as const },
   { phase: 'structuring', label: 'Building clause map...', icon: 'spinner' as const },
+  { phase: 'saving', label: 'Saving contract...', icon: 'spinner' as const },
   { phase: 'complete', label: 'Analysis complete', icon: 'check' as const },
 ];
 
@@ -98,7 +99,7 @@ export default function UploadForm() {
                 }
               }
             } else {
-              const data = await response.json();
+              const data = (await response.json()) as { error?: string };
               throw new Error(data.error ?? 'Failed to analyse contract');
             }
             return;
@@ -149,7 +150,7 @@ export default function UploadForm() {
           }
           throw new Error('Failed to analyse contract');
         } else {
-          const data = await response.json();
+          const data = (await response.json()) as { error?: string };
           throw new Error(data.error ?? 'Failed to analyse contract');
         }
       }
@@ -190,8 +191,22 @@ export default function UploadForm() {
           setPhase(event.phase);
           if (event.phase === 'complete' && event.data !== undefined) {
             const contract = event.data as ParsedContract;
-            sessionStorage.setItem('contract', JSON.stringify(contract));
-            router.push('/contract');
+            setPhase('saving');
+            try {
+              const saveRes = await fetch('/api/contracts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contract }),
+              });
+              const saved = await saveRes.json() as { id?: string; error?: string };
+              if (!saveRes.ok || saved.error) {
+                throw new Error(saved.error || 'Failed to save contract');
+              }
+              router.push(`/contracts/${saved.id}`);
+            } catch (saveErr) {
+              setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
+              return;
+            }
             return;
           }
         } catch (e) {
@@ -206,9 +221,22 @@ export default function UploadForm() {
         const event: SSEEvent = JSON.parse(buffer.trim().slice(6));
         if (event.phase === 'complete' && event.data !== undefined) {
           const contract = event.data as ParsedContract;
-          setPhase('complete');
-          sessionStorage.setItem('contract', JSON.stringify(contract));
-          router.push('/contract');
+          setPhase('saving');
+          try {
+            const saveRes = await fetch('/api/contracts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contract }),
+            });
+            const saved = await saveRes.json() as { id?: string; error?: string };
+            if (!saveRes.ok || saved.error) {
+              throw new Error(saved.error || 'Failed to save contract');
+            }
+            router.push(`/contracts/${saved.id}`);
+          } catch (saveErr) {
+            setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
+            return;
+          }
           return;
         }
         if (event.phase === 'error') {

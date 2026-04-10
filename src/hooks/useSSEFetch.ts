@@ -107,9 +107,9 @@ export function useSSEFetch<T>(): UseSSEFetchResult<T> {
         return result;
       } else {
         // Non-SSE response (e.g., a validation error)
-        const json = await response.json();
+        const json = (await response.json()) as Record<string, unknown>;
         if (!response.ok) {
-          setError(json.error || json.message || `Error: ${response.status}`);
+          setError((json.error || json.message || `Error: ${response.status}`) as string);
           setIsLoading(false);
           return null;
         }
