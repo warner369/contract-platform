@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/auth/session';
 
 const protectedRoutes = ['/dashboard', '/contracts', '/invite'];
 const authRoutes = ['/login', '/register'];
@@ -13,7 +11,7 @@ function isAuthRoute(pathname: string): boolean {
   return authRoutes.some((route) => pathname === route);
 }
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip API routes, static assets
@@ -25,29 +23,20 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Read session cookie
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  let userId: string | null = null;
-
-  if (token) {
-    try {
-      userId = await verifySession(token);
-    } catch {
-      // Invalid or expired token, or D1 not available in dev
-      // In development, proceed without auth check
-    }
-  }
+  // Lightweight cookie-presence check only.
+  // Full session verification happens in API routes / server components
+  // which have access to D1 via getCloudflareContext().
+  const token = request.cookies.get('session_token')?.value;
 
   // Redirect unauthenticated users to login for protected routes
-  if (isProtectedRoute(pathname) && !userId) {
+  if (isProtectedRoute(pathname) && !token) {
     const loginUrl = new URL('/login', request.nextUrl);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from login/register
-  if (isAuthRoute(pathname) && userId) {
+  if (isAuthRoute(pathname) && token) {
     return NextResponse.redirect(new URL('/dashboard', request.nextUrl));
   }
 
