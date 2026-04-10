@@ -181,7 +181,7 @@ The `ContractProvider` accepts an optional `initialState` prop for hydrating fro
 - All AI-suggested changes are proposals requiring explicit user acceptance
 - Styling: Tailwind utility classes only, palette: slate/navy/blue, risk: emerald/amber/red
 - Set `export const maxDuration = 60` on API routes for Cloudflare Workers
-- Password hashing uses PBKDF2 via Web Crypto API (600k iterations, SHA-256, 16-byte salt) — **no bcrypt** (not available in Workers runtime)
+- Password hashing uses PBKDF2 via Web Crypto API (100k iterations, SHA-256, 16-byte salt) — **no bcrypt** (not available in Workers runtime). Max 100k iterations on Cloudflare Workers.
 - Auth middleware is `src/middleware.ts` (NOT proxy.ts) — Cloudflare Workers requires Edge runtime for middleware, but Next.js 16's `proxy.ts` forces Node.js runtime. Using `middleware.ts` with `export const runtime = 'experimental-edge'` resolves this. Do NOT rename to proxy.ts.
 - D1 access via `getCloudflareContext()` from `@opennextjs/cloudflare` (NOT `getRequestContext` from `@cloudflare/next-on-pages`)
 - Session cookies: HttpOnly, Secure (production), SameSite=Lax, 30-day expiry

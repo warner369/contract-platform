@@ -1,4 +1,4 @@
-const ITERATIONS = 600000;
+const ITERATIONS = 100000; // Max allowed by Cloudflare Workers
 const KEY_LENGTH = 256;
 const SALT_LENGTH = 16;
 
