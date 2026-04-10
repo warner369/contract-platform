@@ -42,7 +42,7 @@ src/
 │   ├── page.tsx                          # Landing page (redirects to /dashboard if authed)
 │   ├── layout.tsx                        # Root layout with AuthProvider
 │   ├── globals.css                       # Tailwind v4 + custom vars
-│   ├── proxy.ts                          # Next.js 16 auth proxy (session cookie check)
+│   ├── middleware.ts                      # Edge auth middleware (cookie check + redirects)
 │   ├── login/page.tsx                    # Login page
 │   ├── register/page.tsx                 # Registration page
 │   ├── dashboard/page.tsx                # User's contract list
@@ -182,7 +182,7 @@ The `ContractProvider` accepts an optional `initialState` prop for hydrating fro
 - Styling: Tailwind utility classes only, palette: slate/navy/blue, risk: emerald/amber/red
 - Set `export const maxDuration = 60` on API routes for Cloudflare Workers
 - Password hashing uses PBKDF2 via Web Crypto API (600k iterations, SHA-256, 16-byte salt) — **no bcrypt** (not available in Workers runtime)
-- Auth proxy is `src/proxy.ts` (Next.js 16 convention, NOT middleware.ts)
+- Auth middleware is `src/middleware.ts` (NOT proxy.ts) — Cloudflare Workers requires Edge runtime for middleware, but Next.js 16's `proxy.ts` forces Node.js runtime. Using `middleware.ts` with `export const runtime = 'experimental-edge'` resolves this. Do NOT rename to proxy.ts.
 - D1 access via `getCloudflareContext()` from `@opennextjs/cloudflare` (NOT `getRequestContext` from `@cloudflare/next-on-pages`)
 - Session cookies: HttpOnly, Secure (production), SameSite=Lax, 30-day expiry
 
