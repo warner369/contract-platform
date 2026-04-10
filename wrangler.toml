@@ -7,9 +7,6 @@ routes = [
   { pattern = "contract-platform.dubussy.com", custom_domain = true }
 ]
 
-[limits]
-cpu_ms = 300_000
-
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
