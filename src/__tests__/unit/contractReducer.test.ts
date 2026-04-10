@@ -463,6 +463,88 @@ describe('contractReducer', () => {
     });
   });
 
+  describe('APPLY_CHANGE edge cases', () => {
+    it('applies a change with type "add" for a new clause not in original', () => {
+      const addChange: ClauseChange = {
+        id: 'change-add',
+        clauseId: 'clause-new',
+        type: 'add',
+        originalText: '',
+        suggestedText: 'New clause text',
+        rationale: 'Added clause',
+        status: 'pending',
+      };
+      const state = contractReducer(stateWithContract, {
+        type: 'APPLY_CHANGE',
+        payload: addChange,
+      });
+      expect(state.current?.clauses.find(c => c.id === 'clause-new')).toBeUndefined();
+      expect(state.changes).toHaveLength(1);
+      expect(state.changes[0].status).toBe('accepted');
+    });
+
+    it('does not duplicate changes when applying the same change twice', () => {
+      const pendingChange: ClauseChange = {
+        id: 'change-1',
+        clauseId: 'clause-1',
+        type: 'modify',
+        originalText: 'Original text for clause 1',
+        suggestedText: 'Modified text for clause 1',
+        rationale: 'Updated terms',
+        status: 'pending',
+      };
+      const withPending: ContractState = {
+        ...stateWithContract,
+        changes: [{ ...pendingChange }],
+      };
+      const firstApply = contractReducer(withPending, {
+        type: 'APPLY_CHANGE',
+        payload: pendingChange,
+      });
+      const secondApply = contractReducer(firstApply, {
+        type: 'APPLY_CHANGE',
+        payload: pendingChange,
+      });
+      expect(secondApply.changes).toHaveLength(1);
+      expect(secondApply.changes[0].status).toBe('accepted');
+    });
+  });
+
+  describe('REJECT_CHANGE edge cases', () => {
+    it('does nothing when rejecting a non-existent change id', () => {
+      const state = contractReducer(stateWithContract, {
+        type: 'REJECT_CHANGE',
+        payload: 'non-existent-id',
+      });
+      expect(state.changes).toHaveLength(0);
+    });
+  });
+
+  describe('SET_VARIABLE edge cases', () => {
+    it('upserts variable when setting same id with new value', () => {
+      const variable: ContractVariable = {
+        id: 'var-1',
+        name: 'Payment Terms (days)',
+        value: '30',
+        affectedClauseIds: ['clause-2'],
+      };
+      const withVar: ContractState = {
+        ...stateWithContract,
+        variables: [variable],
+      };
+      const updated: ContractVariable = {
+        ...variable,
+        value: '45',
+      };
+      const state = contractReducer(withVar, {
+        type: 'SET_VARIABLE',
+        payload: updated,
+      });
+      expect(state.variables).toHaveLength(1);
+      expect(state.variables[0].value).toBe('45');
+    });
+  });
+
   describe('RESET', () => {
     it('returns initial state with all new fields cleared', () => {
       const modified: ContractState = {

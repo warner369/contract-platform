@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useContract } from '@/components/providers/ContractProvider';
 import SuggestChangePanel from './SuggestChangePanel';
 import ProactiveSuggestions from './ProactiveSuggestions';
+import ClauseNotes from './ClauseNotes';
+import ThreadPanel from './ThreadPanel';
+import VariablesPanel from './VariablesPanel';
 import type { Clause, ClauseAnalysis } from '@/types/contract';
 
 function Section({
@@ -50,7 +53,8 @@ export default function ClauseDetailPanel({
   clause: Clause;
   contractTitle: string;
 }) {
-  const { selectClause, getAnalysisCache, setAnalysisCache } = useContract();
+  const { selectClause, getAnalysisCache, setAnalysisCache, getNotesForClause, getThreadsForClause, state } = useContract();
+  const relevantVariableCount = state.variables.filter((v) => v.affectedClauseIds.includes(clause.id)).length;
   const [analysis, setAnalysis] = useState<ClauseAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -219,6 +223,18 @@ export default function ClauseDetailPanel({
               </ul>
             </Section>
           )}
+
+          <Section title="Notes" defaultOpen={false} count={getNotesForClause(clause.id).length}>
+            <ClauseNotes clauseId={clause.id} />
+          </Section>
+
+          <Section title="Discussion" defaultOpen={false} count={getThreadsForClause(clause.id).length}>
+            <ThreadPanel clauseId={clause.id} />
+          </Section>
+
+          <Section title="Variables" defaultOpen={false} count={relevantVariableCount}>
+            <VariablesPanel clauseId={clause.id} />
+          </Section>
         </>
       ) : null}
     </div>

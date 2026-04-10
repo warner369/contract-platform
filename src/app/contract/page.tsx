@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import ContractPageClient from '@/components/ContractPageClient';
 import ExportButton from '@/components/ExportButton';
+import LifecycleBadge from '@/components/LifecycleBadge';
 import { ContractProvider } from '@/components/providers/ContractProvider';
 
 export default function ContractPage() {
@@ -13,6 +14,7 @@ export default function ContractPage() {
               Clause
             </Link>
             <div className="flex items-center gap-4">
+              <LifecycleBadge />
               <ExportButton />
               <span className="text-xs text-slate-400 font-medium px-2.5 py-1 bg-slate-100 rounded-full">
                 Prototype
