@@ -207,9 +207,12 @@ export default function SuggestChangePanel({
                       {response.alternatives.map((alt, ai) => (
                         <details key={ai} className="border border-slate-100 rounded-md">
                           <summary className="p-2 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-50">
-                            {alt.text.slice(0, 100)}{alt.text.length > 100 ? '...' : ''}
+                            {alt.label || alt.text.slice(0, 80)}
                           </summary>
                           <div className="px-2 pb-2 space-y-1.5">
+                            <p className="text-xs text-slate-700 italic border-l-2 border-slate-200 pl-2">
+                              &ldquo;{alt.text}&rdquo;
+                            </p>
                             {alt.pros.length > 0 && (
                               <div>
                                 <p className="text-[10px] font-semibold text-emerald-600 mb-0.5">Pros</p>

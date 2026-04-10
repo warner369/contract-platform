@@ -10,10 +10,11 @@ export const MODEL = 'claude-sonnet-4-5-20250929';
 export async function generateCompletion(
   systemPrompt: string,
   userPrompt: string,
+  maxTokens: number = 8192,
 ): Promise<string> {
   const message = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     system: systemPrompt,
     messages: [
       {
@@ -22,6 +23,13 @@ export async function generateCompletion(
       },
     ],
   });
+
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error(
+      'The document is too large for the AI to process in a single response. ' +
+      'Please try uploading a shorter contract or breaking it into smaller sections.',
+    );
+  }
 
   const textBlock = message.content.find((block) => block.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {
@@ -49,8 +57,9 @@ function coerceJsonStrings(value: unknown): unknown {
 export async function generateJsonCompletion<T>(
   systemPrompt: string,
   userPrompt: string,
+  maxTokens: number = 8192,
 ): Promise<T> {
-  const response = await generateCompletion(systemPrompt, userPrompt);
+  const response = await generateCompletion(systemPrompt, userPrompt, maxTokens);
 
   // Extract JSON from response (handle potential markdown code blocks)
   const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) ||

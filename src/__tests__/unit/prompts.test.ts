@@ -77,4 +77,9 @@ describe('createSuggestPrompt', () => {
     const result = createSuggestPrompt(clause, 'some intent', 'Test Contract');
     expect(result).toContain('Test Contract');
   });
+
+  it('includes label in alternatives structure', () => {
+    const result = createSuggestPrompt(clause, 'some intent', 'Test Contract');
+    expect(result).toContain('"label"');
+  });
 });

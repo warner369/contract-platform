@@ -135,6 +135,7 @@ export const sampleSuggestResponse: SuggestResponse = {
   ],
   alternatives: [
     {
+      label: 'Narrowly-tailored NDA definition',
       text: 'Replace the entire clause with a narrowly-tailored NDA definition.',
       pros: ['Greater clarity', 'Easier to enforce'],
       cons: ['May not cover all scenarios', 'Requires more negotiation'],

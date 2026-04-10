@@ -143,6 +143,7 @@ export interface SuggestResponse {
     rationale: string;
   }>;
   alternatives: Array<{
+    label?: string;
     text: string;
     pros: string[];
     cons: string[];

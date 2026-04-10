@@ -4,15 +4,17 @@ export const PARSE_SYSTEM_PROMPT = `You are a legal contract analyst. Your job i
 
 You MUST respond with valid JSON only. No explanations before or after.
 
+Keep clause text concise — use the original text verbatim. Do not paraphrase or expand.
+
 For each clause, identify:
 1. A unique ID (format: "clause-N" where N is sequential)
 2. The clause number as it appears in the document
 3. A descriptive title
-4. The full clause text
+4. The full clause text (verbatim from the original document)
 5. A category (definitions, payment, liability, termination, ip, confidentiality, indemnity, force_majeure, dispute_resolution, general, other)
 6. Cross-references to other clauses (by their IDs)
 7. A risk level (low, medium, high) based on how favourable/standard the terms are
-8. Brief risk notes explaining any concerns
+8. Brief risk notes (max 10 words each) explaining any concerns
 
 The summary should capture the key points and overall nature of the agreement.
 List all parties identified in the contract.`;
@@ -111,6 +113,7 @@ Suggest specific changes as JSON:
   ],
   "alternatives": [
     {
+      "label": "Short descriptive name for this alternative approach",
       "text": "Alternative clause text option",
       "pros": ["Advantage 1"],
       "cons": ["Disadvantage 1"]
