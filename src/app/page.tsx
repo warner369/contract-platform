@@ -56,7 +56,7 @@ export default function HomePage() {
           <span className="text-base font-semibold text-slate-900 tracking-tight">Clause</span>
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500">{user.name}</span>
+              <a href="/dashboard" className="text-sm text-slate-600 hover:text-slate-800 font-medium">{user.name}</a>
               <form action="/api/auth/logout" method="POST">
                 <button type="submit" className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
               </form>

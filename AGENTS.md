@@ -134,10 +134,11 @@ src/
     → PBKDF2 hash verify (Web Crypto API) → create session token → set HttpOnly cookie
     → redirect to /dashboard
 
-[proxy.ts] → checks session_token cookie on every request
-    → /dashboard, /contracts, /invite: require valid session
-    → /login, /register: redirect to /dashboard if already authed
+[middleware.ts] → lightweight cookie-presence check on every request
+    → /dashboard, /contracts, /invite: redirect to /login if no session cookie
+    → /login, /register: redirect to /dashboard if session cookie present
     → /api/*, /, static: pass through
+    → Full auth verification (DB lookup) happens in API routes via getUserFromRequest/requireAuth
 ```
 
 ### Data Flow
@@ -228,7 +229,7 @@ In the Cloudflare dashboard:
 - [x] Wire suggest-change UI — SuggestChangePanel + ProactiveSuggestions
 - [x] Add D1 database with auth, contracts, collaboration schema
 - [x] Custom auth system (register, login, sessions, PBKDF2 hashing)
-- [x] Next.js 16 proxy.ts for route protection
+- [x] Next.js 16 middleware.ts (Edge runtime) for route protection
 - [x] Contract persistence API (CRUD via D1)
 - [x] Upload flow saves to D1 instead of sessionStorage
 - [x] Dashboard page listing user's contracts

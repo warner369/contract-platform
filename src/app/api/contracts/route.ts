@@ -74,8 +74,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, { status: 201 });
   } catch (error) {
     console.error('Create contract error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create contract';
     return NextResponse.json(
-      { error: 'Failed to create contract' },
+      { error: message },
       { status: 500 },
     );
   }

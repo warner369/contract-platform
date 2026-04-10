@@ -200,11 +200,14 @@ export default function UploadForm() {
               });
               const saved = await saveRes.json() as { id?: string; error?: string };
               if (!saveRes.ok || saved.error) {
-                throw new Error(saved.error || 'Failed to save contract');
+                throw new Error(saved.error || `Save failed (${saveRes.status})`);
               }
+              setPhase('complete');
+              setIsLoading(false);
               router.push(`/contracts/${saved.id}`);
             } catch (saveErr) {
               setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
+              setIsLoading(false);
               return;
             }
             return;
@@ -230,11 +233,14 @@ export default function UploadForm() {
             });
             const saved = await saveRes.json() as { id?: string; error?: string };
             if (!saveRes.ok || saved.error) {
-              throw new Error(saved.error || 'Failed to save contract');
+              throw new Error(saved.error || `Save failed (${saveRes.status})`);
             }
+            setPhase('complete');
+            setIsLoading(false);
             router.push(`/contracts/${saved.id}`);
           } catch (saveErr) {
             setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
+            setIsLoading(false);
             return;
           }
           return;

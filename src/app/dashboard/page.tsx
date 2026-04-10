@@ -13,10 +13,21 @@ interface ContractListItem {
   permission?: string;
 }
 
+const LIFECYCLE_STATES = [
+  { value: 'all', label: 'All' },
+  { value: 'uploaded', label: 'Uploaded' },
+  { value: 'structured', label: 'Structured' },
+  { value: 'under_review', label: 'Under review' },
+  { value: 'negotiating', label: 'Negotiating' },
+  { value: 'finalised', label: 'Finalised' },
+  { value: 'signed', label: 'Signed' },
+];
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [contracts, setContracts] = useState<ContractListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     async function loadContracts() {
@@ -35,6 +46,10 @@ export default function DashboardPage() {
     loadContracts();
   }, []);
 
+  const filteredContracts = filter === 'all'
+    ? contracts
+    : contracts.filter((c) => c.lifecycleState === filter);
+
   return (
     <div className="min-h-screen bg-[#f8f7f4]">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
@@ -45,10 +60,10 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             {user && (
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
+                <Link href="/dashboard" className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600 hover:bg-slate-300 transition-colors">
                   {user.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm text-slate-600">{user.name}</span>
+                </Link>
+                <Link href="/dashboard" className="text-sm text-slate-600 hover:text-slate-800 font-medium">{user.name}</Link>
                 <button
                   onClick={logout}
                   className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
@@ -94,32 +109,69 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {contracts.map((contract) => (
-              <Link
-                key={contract.id}
-                href={`/contracts/${contract.id}`}
-                className="block bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-sm transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">{contract.title}</h3>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-slate-400">{new Date(contract.createdAt).toLocaleDateString()}</span>
-                      {contract.role === 'collaborator' && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
-                          Shared · {contract.permission}
-                        </span>
-                      )}
+          <>
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              {LIFECYCLE_STATES.map((state) => (
+                <button
+                  key={state.value}
+                  onClick={() => setFilter(state.value)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                    filter === state.value
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {state.label}
+                  {state.value !== 'all' && (
+                    <span className={`ml-1.5 ${filter === state.value ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {contracts.filter((c) => c.lifecycleState === state.value).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {filteredContracts.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-400">No contracts with state &ldquo;{LIFECYCLE_STATES.find((s) => s.value === filter)?.label}&rdquo;</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredContracts.map((contract) => (
+                  <Link
+                    key={contract.id}
+                    href={`/contracts/${contract.id}`}
+                    className="block bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">{contract.title}</h3>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-xs text-slate-400">{new Date(contract.createdAt).toLocaleDateString()}</span>
+                          {contract.role === 'collaborator' && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
+                              Shared · {contract.permission}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                        contract.lifecycleState === 'uploaded' ? 'bg-slate-100 text-slate-600' :
+                        contract.lifecycleState === 'structured' ? 'bg-blue-50 text-blue-600' :
+                        contract.lifecycleState === 'under_review' ? 'bg-amber-50 text-amber-600' :
+                        contract.lifecycleState === 'negotiating' ? 'bg-orange-50 text-orange-600' :
+                        contract.lifecycleState === 'finalised' ? 'bg-emerald-50 text-emerald-600' :
+                        contract.lifecycleState === 'signed' ? 'bg-green-50 text-green-600' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {contract.lifecycleState.replace(/_/g, ' ')}
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-slate-100 text-slate-600">
-                    {contract.lifecycleState.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
