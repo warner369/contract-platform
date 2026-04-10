@@ -12,7 +12,7 @@ Contract review and collaboration platform for SMBs: upload contracts, parse int
 - **Cloudflare D1** for persistent storage (SQLite database)
 - **mammoth** for DOCX extraction, **pdfjs-dist** for client-side PDF extraction
 - **Custom auth** — PBKDF2 password hashing (Web Crypto API), session tokens in D1
-- **Next.js 16 proxy.ts** for route protection
+- **Next.js 16 middleware.ts** (Edge runtime) for route protection
 
 ## Commands
 
@@ -237,4 +237,4 @@ In the Cloudflare dashboard:
 - [x] Invite acceptance page
 - [ ] Persist changes/notes/threads to D1 on every mutation (API routes exist, UI wiring needed)
 - [ ] Add tests for auth, contract API, and collaboration flows
-- [ ] Wire `ComparisonView` into contract detail page for side-by-side diffs of active changes
+- [x] Wire `ComparisonView` into contract detail page for side-by-side diffs of active changes
