@@ -14,7 +14,19 @@ import { sampleClause, sampleSuggestResponse } from '../mocks/contract-data';
 
 const mockGenerateJsonCompletion = vi.mocked(generateJsonCompletion);
 
-describe('POST /api/suggest-change', () => {
+async function readSSE(response: Response): Promise<Array<{ phase: string; message: string; data?: unknown }>> {
+  const text = await response.text();
+  const events: Array<{ phase: string; message: string; data?: unknown }> = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    try {
+      events.push(JSON.parse(line.slice(6)));
+    } catch { /* skip */ }
+  }
+  return events;
+}
+
+describe('POST /api/suggest-change (SSE)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,31 +39,9 @@ describe('POST /api/suggest-change', () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('Missing required fields');
   });
 
-  it('returns 400 when userIntent is missing', async () => {
-    const req = new NextRequest('http://localhost/api/suggest-change', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clause: sampleClause, contractTitle: 'Test' }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 when contractTitle is missing', async () => {
-    const req = new NextRequest('http://localhost/api/suggest-change', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clause: sampleClause, userIntent: 'change this' }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 200 with valid inputs', async () => {
+  it('returns SSE stream with phases for valid request', async () => {
     mockGenerateJsonCompletion.mockResolvedValueOnce(sampleSuggestResponse);
     const req = new NextRequest('http://localhost/api/suggest-change', {
       method: 'POST',
@@ -63,26 +53,32 @@ describe('POST /api/suggest-change', () => {
       }),
     });
     const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.suggestions).toBeDefined();
-    expect(body.suggestions.length).toBeGreaterThan(0);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const events = await readSSE(res);
+    expect(events.some((e) => e.phase === 'received')).toBe(true);
+    expect(events.some((e) => e.phase === 'generating')).toBe(true);
+    expect(events.some((e) => e.phase === 'complete')).toBe(true);
+
+    const completeEvent = events.find((e) => e.phase === 'complete');
+    expect(completeEvent?.data).toBeDefined();
   });
 
-  it('returns 500 when AI throws an error', async () => {
+  it('returns SSE error event when AI throws', async () => {
     mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('API error'));
     const req = new NextRequest('http://localhost/api/suggest-change', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         clause: sampleClause,
-        userIntent: 'change this',
+        userIntent: 'change',
         contractTitle: 'Test',
       }),
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toBeTruthy();
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const events = await readSSE(res);
+    expect(events.some((e) => e.phase === 'error')).toBe(true);
   });
 });

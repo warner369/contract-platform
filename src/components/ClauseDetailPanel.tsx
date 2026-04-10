@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useContract } from '@/components/providers/ContractProvider';
 import SuggestChangePanel from './SuggestChangePanel';
 import ProactiveSuggestions from './ProactiveSuggestions';
@@ -8,6 +8,7 @@ import ClauseNotes from './ClauseNotes';
 import ThreadPanel from './ThreadPanel';
 import VariablesPanel from './VariablesPanel';
 import type { Clause, ClauseAnalysis } from '@/types/contract';
+import type { SSEEvent } from '@/lib/sse';
 
 function Section({
   title,
@@ -57,40 +58,100 @@ export default function ClauseDetailPanel({
   const relevantVariableCount = state.variables.filter((v) => v.affectedClauseIds.includes(clause.id)).length;
   const [analysis, setAnalysis] = useState<ClauseAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showManualSuggest, setShowManualSuggest] = useState(false);
 
-  useEffect(() => {
+  const fetchAnalysis = useCallback(async () => {
     const cached = getAnalysisCache(clause.id);
     if (cached) {
       setAnalysis(cached);
       return;
     }
 
-    async function fetchAnalysis() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/analyse-clause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clause, contractTitle }),
-        });
+    setIsLoading(true);
+    setLoadingMessage('Analyzing this clause...');
+    setError(null);
+
+    try {
+      const response = await fetch('/api/analyse-clause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clause, contractTitle }),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+
+      if (contentType.includes('text/event-stream') && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event: SSEEvent = JSON.parse(line.slice(6));
+              if (event.phase === 'error') {
+                throw new Error(event.message);
+              }
+              if (event.phase === 'complete' && event.data !== undefined) {
+                const data = event.data as ClauseAnalysis;
+                setAnalysis(data);
+                setAnalysisCache(clause.id, data);
+                return;
+              }
+              if (event.message) {
+                setLoadingMessage(event.message);
+              }
+            } catch (e) {
+              if (e instanceof Error) throw e;
+            }
+          }
+        }
+
+        // Process remaining buffer
+        if (buffer.trim().startsWith('data: ')) {
+          try {
+            const event: SSEEvent = JSON.parse(buffer.trim().slice(6));
+            if (event.phase === 'complete' && event.data !== undefined) {
+              const data = event.data as ClauseAnalysis;
+              setAnalysis(data);
+              setAnalysisCache(clause.id, data);
+              return;
+            }
+            if (event.phase === 'error') {
+              throw new Error(event.message);
+            }
+          } catch (e) {
+            if (e instanceof Error) throw e;
+          }
+        }
+      } else {
         if (!response.ok) {
           throw new Error('Failed to analyse clause');
         }
         const data = await response.json();
         setAnalysis(data);
         setAnalysisCache(clause.id, data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage(null);
     }
+  }, [clause, contractTitle, getAnalysisCache, setAnalysisCache]);
 
+  useEffect(() => {
     fetchAnalysis();
-  }, [clause.id, contractTitle, getAnalysisCache, setAnalysisCache]);
+  }, [clause.id, fetchAnalysis]);
 
   return (
     <div className="p-6 rounded-xl border border-slate-200 bg-white">
@@ -134,8 +195,11 @@ export default function ClauseDetailPanel({
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex flex-col items-center justify-center py-8 gap-2">
           <div className="w-6 h-6 border-2 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
+          {loadingMessage && (
+            <p className="text-sm text-slate-500">{loadingMessage}</p>
+          )}
         </div>
       ) : error ? (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">

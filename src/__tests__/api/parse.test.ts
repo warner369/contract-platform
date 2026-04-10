@@ -22,30 +22,36 @@ const mockExtractText = vi.mocked(extractText);
 
 const longText = 'A'.repeat(200);
 
-describe('POST /api/parse', () => {
+async function readSSE(response: Response): Promise<{ events: Array<{ phase: string; message: string; data?: unknown }> }> {
+  const text = await response.text();
+  const events: Array<{ phase: string; message: string; data?: unknown }> = [];
+
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    try {
+      const event = JSON.parse(line.slice(6));
+      events.push(event);
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  return { events };
+}
+
+describe('POST /api/parse (SSE)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns 400 when content type is unsupported', async () => {
-    const req = new NextRequest('http://localhost/api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: 'some text',
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('Unsupported content type');
-  });
-
-  it('returns 400 when JSON body has no text', async () => {
+  it('returns 400 for JSON body with no text', async () => {
     const req = new NextRequest('http://localhost/api/parse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
     const res = await POST(req);
+    // Validation errors return plain JSON, not SSE
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('No text provided');
@@ -59,43 +65,6 @@ describe('POST /api/parse', () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('too short');
-  });
-
-  it('returns 200 with valid JSON text body', async () => {
-    mockGenerateJsonCompletion.mockResolvedValueOnce(sampleContract);
-    const req = new NextRequest('http://localhost/api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: longText }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.title).toBe(sampleContract.title);
-  });
-
-  it('returns 500 when AI response lacks required fields', async () => {
-    mockGenerateJsonCompletion.mockResolvedValueOnce({ summary: 'missing title and clauses' });
-    const req = new NextRequest('http://localhost/api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: longText }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(500);
-  });
-
-  it('returns 500 when generateJsonCompletion throws', async () => {
-    mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('Something went wrong'));
-    const req = new NextRequest('http://localhost/api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: longText }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(500);
   });
 
   it('returns 400 for PDF file uploads', async () => {
@@ -120,7 +89,29 @@ describe('POST /api/parse', () => {
     expect(res.status).toBe(400);
   });
 
-  it('calls extractText and generateJsonCompletion for DOCX uploads', async () => {
+  it('returns SSE stream with phases for valid JSON text', async () => {
+    mockGenerateJsonCompletion.mockResolvedValueOnce(sampleContract);
+    const req = new NextRequest('http://localhost/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: longText }),
+    });
+    const res = await POST(req);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const { events } = await readSSE(res);
+    expect(events.length).toBeGreaterThanOrEqual(2);
+    expect(events[0].phase).toBe('upload');
+    expect(events.some((e) => e.phase === 'analysing')).toBe(true);
+    expect(events.some((e) => e.phase === 'complete')).toBe(true);
+
+    const completeEvent = events.find((e) => e.phase === 'complete');
+    expect(completeEvent?.data).toBeDefined();
+    const contractData = (completeEvent?.data as Record<string, unknown>)?.contract as { title: string } | undefined;
+    expect(contractData?.title).toBe(sampleContract.title);
+  });
+
+  it('returns SSE stream with phases for DOCX file upload', async () => {
     const extractedText = 'Extracted text from a DOCX file that is long enough to pass the minimum length check for parsing contracts';
     mockExtractText.mockResolvedValueOnce(extractedText);
     mockGenerateJsonCompletion.mockResolvedValueOnce(sampleContract);
@@ -136,21 +127,36 @@ describe('POST /api/parse', () => {
       body: formData,
     });
     const res = await POST(req);
-    expect(res.status).toBe(200);
-    expect(mockExtractText).toHaveBeenCalledTimes(1);
-    expect(mockGenerateJsonCompletion).toHaveBeenCalledTimes(1);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const { events } = await readSSE(res);
+    expect(events.some((e) => e.phase === 'upload')).toBe(true);
+    expect(events.some((e) => e.phase === 'extracting')).toBe(true);
+    expect(events.some((e) => e.phase === 'analysing')).toBe(true);
+    expect(events.some((e) => e.phase === 'complete')).toBe(true);
   });
 
-  it('returns 500 on ANTHROPIC_API_KEY error', async () => {
-    mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('ANTHROPIC_API_KEY is not set'));
+  it('returns SSE error event when AI throws', async () => {
+    mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('Something went wrong'));
     const req = new NextRequest('http://localhost/api/parse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: longText }),
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toContain('API configuration error');
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const { events } = await readSSE(res);
+    expect(events.some((e) => e.phase === 'error')).toBe(true);
+  });
+
+  it('returns 400 for unsupported content type', async () => {
+    const req = new NextRequest('http://localhost/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'some text',
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });

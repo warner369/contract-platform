@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { useContract } from '@/components/providers/ContractProvider';
+import { fetchSSE } from '@/lib/sse';
 import type { Clause, ClauseAnalysis, SuggestResponse, ClauseChange } from '@/types/contract';
 
 const diffStyles = {
@@ -51,14 +52,11 @@ export default function ProactiveSuggestions({
           if (cached) {
             return { intent, response: cached, loading: false, error: null };
           }
-          try {
-            const res = await fetch('/api/suggest-change', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ clause, userIntent: intent, contractTitle }),
-            });
-            if (!res.ok) throw new Error('Failed to suggest changes');
-            const data: SuggestResponse = await res.json();
+           try {
+            const data = await fetchSSE<SuggestResponse>(
+              '/api/suggest-change',
+              { clause, userIntent: intent, contractTitle },
+            );
             setSuggestionCache(cacheKey, data);
             return { intent, response: data, loading: false, error: null };
           } catch (err) {
@@ -75,6 +73,7 @@ export default function ProactiveSuggestions({
       setGroups(loaded);
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: set loading state before async fetch
     setGroups(recommendations.map((intent) => ({ intent, response: null, loading: true, error: null })));
     fetchSuggestions();
   }, [clause.id, contractTitle]); // eslint-disable-line react-hooks/exhaustive-deps

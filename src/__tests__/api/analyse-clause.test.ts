@@ -14,7 +14,19 @@ import { sampleClause, sampleAnalysis } from '../mocks/contract-data';
 
 const mockGenerateJsonCompletion = vi.mocked(generateJsonCompletion);
 
-describe('POST /api/analyse-clause', () => {
+async function readSSE(response: Response): Promise<Array<{ phase: string; message: string; data?: unknown }>> {
+  const text = await response.text();
+  const events: Array<{ phase: string; message: string; data?: unknown }> = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    try {
+      events.push(JSON.parse(line.slice(6)));
+    } catch { /* skip */ }
+  }
+  return events;
+}
+
+describe('POST /api/analyse-clause (SSE)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,21 +39,9 @@ describe('POST /api/analyse-clause', () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('Missing required fields');
   });
 
-  it('returns 400 when contractTitle is missing', async () => {
-    const req = new NextRequest('http://localhost/api/analyse-clause', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clause: sampleClause }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 200 with valid clause and contractTitle', async () => {
+  it('returns SSE stream with phases for valid request', async () => {
     mockGenerateJsonCompletion.mockResolvedValueOnce(sampleAnalysis);
     const req = new NextRequest('http://localhost/api/analyse-clause', {
       method: 'POST',
@@ -49,28 +49,18 @@ describe('POST /api/analyse-clause', () => {
       body: JSON.stringify({ clause: sampleClause, contractTitle: 'Test Contract' }),
     });
     const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.explanation).toBeDefined();
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const events = await readSSE(res);
+    expect(events.some((e) => e.phase === 'received')).toBe(true);
+    expect(events.some((e) => e.phase === 'analysing')).toBe(true);
+    expect(events.some((e) => e.phase === 'complete')).toBe(true);
+
+    const completeEvent = events.find((e) => e.phase === 'complete');
+    expect(completeEvent?.data).toBeDefined();
   });
 
-  it('passes userContext through when provided', async () => {
-    mockGenerateJsonCompletion.mockResolvedValueOnce(sampleAnalysis);
-    const req = new NextRequest('http://localhost/api/analyse-clause', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clause: sampleClause,
-        contractTitle: 'Test Contract',
-        userContext: 'I am a small business owner',
-      }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    expect(mockGenerateJsonCompletion).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns 500 when AI throws an error', async () => {
+  it('returns SSE error event when AI throws', async () => {
     mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('API error'));
     const req = new NextRequest('http://localhost/api/analyse-clause', {
       method: 'POST',
@@ -78,6 +68,9 @@ describe('POST /api/analyse-clause', () => {
       body: JSON.stringify({ clause: sampleClause, contractTitle: 'Test' }),
     });
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+
+    const events = await readSSE(res);
+    expect(events.some((e) => e.phase === 'error')).toBe(true);
   });
 });

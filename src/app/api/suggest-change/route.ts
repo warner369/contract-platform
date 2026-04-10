@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { generateJsonCompletion } from '@/lib/ai/client';
 import {
   SUGGEST_SYSTEM_PROMPT,
   createSuggestPrompt,
 } from '@/lib/ai/prompts';
+import { createSSEResponse, sseError, startHeartbeat } from '@/lib/sse';
 import type { Clause, SuggestResponse } from '@/types/contract';
 
-// Cloudflare Workers compatibility via OpenNext adapter
 export const maxDuration = 30;
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const body = await request.json();
 
@@ -20,31 +20,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     if (!clause || !userIntent || !contractTitle) {
-      return NextResponse.json(
-        { error: 'Missing required fields: clause, userIntent, and contractTitle' },
-        { status: 400 },
-      );
+      return sseError('Missing required fields: clause, userIntent, and contractTitle', 400);
     }
 
-    const suggestions = await generateJsonCompletion<SuggestResponse>(
-      SUGGEST_SYSTEM_PROMPT,
-      createSuggestPrompt(clause, userIntent, contractTitle),
-    );
+    return createSSEResponse(async (send) => {
+      send('received', 'Generating suggestions...');
+      send('generating', 'Crafting proposed changes...');
 
-    return NextResponse.json(suggestions);
+      const stopHeartbeat = startHeartbeat(send);
+      let suggestions: SuggestResponse;
+      try {
+        suggestions = await generateJsonCompletion<SuggestResponse>(
+          SUGGEST_SYSTEM_PROMPT,
+          createSuggestPrompt(clause, userIntent, contractTitle),
+        );
+      } finally {
+        stopHeartbeat();
+      }
+
+      send('complete', 'Suggestions ready', { suggestions });
+    });
   } catch (error) {
     console.error('Suggest change error:', error);
-
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to generate suggestions' },
-      { status: 500 },
+    return sseError(
+      error instanceof Error ? error.message : 'Failed to generate suggestions',
+      500,
     );
   }
 }
