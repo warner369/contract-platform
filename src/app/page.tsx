@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import UploadForm from '@/components/UploadForm';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -48,26 +46,7 @@ const features = [
 ];
 
 export default function HomePage() {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      router.push('/dashboard');
-    }
-  }, [user, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f7f4]">
-        <div className="text-sm text-slate-400">Loading...</div>
-      </div>
-    );
-  }
-
-  if (user) {
-    return null;
-  }
+  const { user } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f8f7f4]">
@@ -75,10 +54,19 @@ export default function HomePage() {
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-base font-semibold text-slate-900 tracking-tight">Clause</span>
-          <div className="flex items-center gap-3">
-            <a href="/login" className="text-sm text-slate-500 hover:text-slate-700">Sign in</a>
-            <a href="/register" className="text-xs font-medium px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800">Create account</a>
-          </div>
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-500">{user.name}</span>
+              <form action="/api/auth/logout" method="POST">
+                <button type="submit" className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
+              </form>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <a href="/login" className="text-sm text-slate-500 hover:text-slate-700">Sign in</a>
+              <a href="/register" className="text-xs font-medium px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800">Create account</a>
+            </div>
+          )}
         </div>
       </header>
 
