@@ -38,7 +38,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         stopHeartbeat();
       }
 
-      send('complete', 'Suggestions ready', { suggestions });
+      send('complete', 'Suggestions ready', suggestions);
     });
   } catch (error) {
     console.error('Suggest change error:', error);

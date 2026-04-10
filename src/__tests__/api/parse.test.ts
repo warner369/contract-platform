@@ -107,7 +107,7 @@ describe('POST /api/parse (SSE)', () => {
 
     const completeEvent = events.find((e) => e.phase === 'complete');
     expect(completeEvent?.data).toBeDefined();
-    const contractData = (completeEvent?.data as Record<string, unknown>)?.contract as { title: string } | undefined;
+    const contractData = completeEvent?.data as Record<string, unknown> | undefined;
     expect(contractData?.title).toBe(sampleContract.title);
   });
 

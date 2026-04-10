@@ -62,6 +62,8 @@ describe('POST /api/suggest-change (SSE)', () => {
 
     const completeEvent = events.find((e) => e.phase === 'complete');
     expect(completeEvent?.data).toBeDefined();
+    const suggestionsData = completeEvent?.data as Record<string, unknown> | undefined;
+    expect(suggestionsData?.suggestions).toBeDefined();
   });
 
   it('returns SSE error event when AI throws', async () => {

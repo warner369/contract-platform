@@ -38,7 +38,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         stopHeartbeat();
       }
 
-      send('complete', 'Analysis complete', { analysis });
+      send('complete', 'Analysis complete', analysis);
     });
   } catch (error) {
     console.error('Analyse clause error:', error);

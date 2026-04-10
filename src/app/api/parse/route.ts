@@ -64,7 +64,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         send('structuring', 'Building contract map...');
-        send('complete', 'Analysis complete', { contract });
+        send('complete', 'Analysis complete', contract);
       });
     } else if (contentType.includes('application/json')) {
       const body = await request.json();
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         send('structuring', 'Building contract map...');
-        send('complete', 'Analysis complete', { contract });
+        send('complete', 'Analysis complete', contract);
       });
     } else {
       return sseError('Unsupported content type', 400);

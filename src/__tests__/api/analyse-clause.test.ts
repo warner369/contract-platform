@@ -58,6 +58,8 @@ describe('POST /api/analyse-clause (SSE)', () => {
 
     const completeEvent = events.find((e) => e.phase === 'complete');
     expect(completeEvent?.data).toBeDefined();
+    const analysisData = completeEvent?.data as Record<string, unknown> | undefined;
+    expect(analysisData?.explanation).toBeDefined();
   });
 
   it('returns SSE error event when AI throws', async () => {
