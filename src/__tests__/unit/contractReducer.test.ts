@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { contractReducer, initialState } from '@/lib/reducer';
-import type { ParsedContract, ClauseChange, ContractState, ClauseNote, ConversationThread, ContractVariable, AuditEntry } from '@/types/contract';
+import type { ParsedContract, ClauseChange, ContractState, ClauseNote, ConversationThread, ContractVariable, AuditEntry, FeedbackMode } from '@/types/contract';
 
 const sampleContract: ParsedContract = {
   title: 'Test Contract',
@@ -333,6 +333,40 @@ describe('contractReducer', () => {
         payload: 'internal_review',
       });
       expect(state.lifecycleState).toBe('internal_review');
+    });
+  });
+
+  describe('SET_FEEDBACK_MODE', () => {
+    it('updates feedback mode', () => {
+      const state = contractReducer(stateWithContract, {
+        type: 'SET_FEEDBACK_MODE',
+        payload: 'aggressive',
+      });
+      expect(state.feedbackMode).toBe('aggressive');
+    });
+
+    it('defaults to balanced in initial state', () => {
+      expect(initialState.feedbackMode).toBe('balanced');
+    });
+
+    it('cycles through all modes', () => {
+      let state = contractReducer(stateWithContract, {
+        type: 'SET_FEEDBACK_MODE',
+        payload: 'aggressive',
+      });
+      expect(state.feedbackMode).toBe('aggressive');
+
+      state = contractReducer(state, {
+        type: 'SET_FEEDBACK_MODE',
+        payload: 'safety_first',
+      });
+      expect(state.feedbackMode).toBe('safety_first');
+
+      state = contractReducer(state, {
+        type: 'SET_FEEDBACK_MODE',
+        payload: 'balanced',
+      });
+      expect(state.feedbackMode).toBe('balanced');
     });
   });
 

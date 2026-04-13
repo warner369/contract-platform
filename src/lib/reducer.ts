@@ -1,15 +1,8 @@
 import type {
-  ParsedContract,
-  ClauseChange,
   ContractState,
   ContractAction,
-  ClauseNote,
-  ConversationThread,
-  ThreadMessage,
-  ContractVariable,
-  AuditEntry,
-  ContractLifecycleState,
 } from '@/types/contract';
+import { DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
 
 export const initialState: ContractState = {
   original: null,
@@ -20,6 +13,7 @@ export const initialState: ContractState = {
   variables: [],
   auditLog: [],
   lifecycleState: 'uploaded',
+  feedbackMode: DEFAULT_FEEDBACK_MODE,
   selectedClauseId: null,
   isLoading: false,
   error: null,
@@ -156,6 +150,11 @@ export function contractReducer(state: ContractState, action: ContractAction): C
       return {
         ...state,
         auditLog: [...state.auditLog, action.payload],
+      };
+    case 'SET_FEEDBACK_MODE':
+      return {
+        ...state,
+        feedbackMode: action.payload,
       };
     case 'RESET':
       return initialState;

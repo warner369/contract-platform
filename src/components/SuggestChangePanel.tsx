@@ -27,7 +27,7 @@ export default function SuggestChangePanel({
   clause: Clause;
   contractTitle: string;
 }) {
-  const { proposeChange, applyChange, rejectChange, getSuggestionCache, setSuggestionCache } = useContract();
+  const { proposeChange, applyChange, rejectChange, getSuggestionCache, setSuggestionCache, state } = useContract();
   const [intent, setIntent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function SuggestChangePanel({
     try {
       const data = await fetchSSE<SuggestResponse>(
         '/api/suggest-change',
-        { clause, userIntent: intent.trim(), contractTitle },
+        { clause, userIntent: intent.trim(), contractTitle, feedbackMode: state.feedbackMode },
         (_phase, message) => setLoadingMessage(message),
       );
       setSuggestionCache(cacheKey, data);

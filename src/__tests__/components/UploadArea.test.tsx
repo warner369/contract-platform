@@ -52,7 +52,7 @@ describe('UploadArea', () => {
     const longText = 'Contract text that is definitely longer than fifty characters total';
     await user.type(textarea, longText);
     await user.click(screen.getByRole('button', { name: 'Analyse Contract' }));
-    expect(onUpload).toHaveBeenCalledWith(null, longText);
+    expect(onUpload).toHaveBeenCalledWith(null, longText, 'balanced');
   });
 
   it('shows drag and drop text in file mode', () => {

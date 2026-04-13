@@ -3,6 +3,8 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import UploadArea from './UploadArea';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { DEFAULT_FEEDBACK_MODE, type FeedbackMode } from '@/lib/feedback-mode';
 import type { ParsedContract } from '@/types/contract';
 import type { SSEEvent } from '@/lib/sse';
 
@@ -37,12 +39,15 @@ const PARSE_PHASES = [
 
 export default function UploadForm() {
   const router = useRouter();
+  const { user } = useAuth();
   const [phase, setPhase] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const feedbackModeRef = useRef<FeedbackMode>(DEFAULT_FEEDBACK_MODE);
 
-  const handleUpload = async (file: File | null, text: string | null) => {
+  const handleUpload = async (file: File | null, text: string | null, feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE) => {
+    feedbackModeRef.current = feedbackMode;
     setIsLoading(true);
     setError(null);
     setPhase('upload');
@@ -62,11 +67,12 @@ export default function UploadForm() {
           if (!extractedText || extractedText.length < 50) {
             throw new Error('Could not extract text from PDF. The file may contain only images. Try pasting the text instead.');
           }
-          body = JSON.stringify({ text: extractedText });
+          body = JSON.stringify({ text: extractedText, feedbackMode: feedbackModeRef.current });
           fetchUrl = '/api/parse';
         } else {
           const formData = new FormData();
           formData.append('file', file);
+          formData.append('feedbackMode', feedbackModeRef.current);
           const response = await fetch('/api/parse', {
             method: 'POST',
             body: formData,
@@ -110,7 +116,7 @@ export default function UploadForm() {
           return;
         }
       } else if (text) {
-        body = JSON.stringify({ text });
+        body = JSON.stringify({ text, feedbackMode: feedbackModeRef.current });
         fetchUrl = '/api/parse';
       } else {
         setIsLoading(false);
@@ -196,7 +202,7 @@ export default function UploadForm() {
               const saveRes = await fetch('/api/contracts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contract }),
+                body: JSON.stringify({ contract, feedbackMode: feedbackModeRef.current }),
               });
               const saved = await saveRes.json() as { id?: string; error?: string };
               if (!saveRes.ok || saved.error) {
@@ -305,7 +311,7 @@ export default function UploadForm() {
 
   return (
     <div>
-      <UploadArea onUpload={handleUpload} />
+      <UploadArea onUpload={handleUpload} userPlan={user?.plan ?? 'free'} />
       {error && (
         <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
           <p className="text-sm text-red-600">{error}</p>

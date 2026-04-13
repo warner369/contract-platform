@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createParsePrompt, createAnalysePrompt, createSuggestPrompt } from '@/lib/ai/prompts';
+import { feedbackModeDirective, type FeedbackMode } from '@/lib/feedback-mode';
 import type { Clause } from '@/types/contract';
 
 describe('createParsePrompt', () => {
@@ -14,6 +15,19 @@ describe('createParsePrompt', () => {
     expect(result).toContain('"clauses"');
     expect(result).toContain('"parties"');
   });
+
+  it('defaults to balanced feedback mode', () => {
+    const result = createParsePrompt('some text');
+    expect(result).toContain(feedbackModeDirective('balanced'));
+  });
+
+  it.each<FeedbackMode>(['aggressive', 'balanced', 'safety_first'])(
+    'includes %s directive when specified',
+    (mode) => {
+      const result = createParsePrompt('some text', mode);
+      expect(result).toContain(feedbackModeDirective(mode));
+    },
+  );
 });
 
 describe('createAnalysePrompt', () => {
@@ -48,6 +62,19 @@ describe('createAnalysePrompt', () => {
     const result = createAnalysePrompt(clause, 'My Contract');
     expect(result).not.toContain('User context:');
   });
+
+  it('defaults to balanced feedback mode', () => {
+    const result = createAnalysePrompt(clause, 'My Contract');
+    expect(result).toContain(feedbackModeDirective('balanced'));
+  });
+
+  it.each<FeedbackMode>(['aggressive', 'balanced', 'safety_first'])(
+    'includes %s directive when specified',
+    (mode) => {
+      const result = createAnalysePrompt(clause, 'My Contract', undefined, mode);
+      expect(result).toContain(feedbackModeDirective(mode));
+    },
+  );
 });
 
 describe('createSuggestPrompt', () => {
@@ -82,4 +109,17 @@ describe('createSuggestPrompt', () => {
     const result = createSuggestPrompt(clause, 'some intent', 'Test Contract');
     expect(result).toContain('"label"');
   });
+
+  it('defaults to balanced feedback mode', () => {
+    const result = createSuggestPrompt(clause, 'some intent', 'Test Contract');
+    expect(result).toContain(feedbackModeDirective('balanced'));
+  });
+
+  it.each<FeedbackMode>(['aggressive', 'balanced', 'safety_first'])(
+    'includes %s directive when specified',
+    (mode) => {
+      const result = createSuggestPrompt(clause, 'some intent', 'Test Contract', mode);
+      expect(result).toContain(feedbackModeDirective(mode));
+    },
+  );
 });

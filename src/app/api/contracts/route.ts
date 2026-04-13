@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { getDb } from '@/lib/db/client';
 import { requireAuth } from '@/lib/db/authHelpers';
+import { isFeedbackMode, DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
 import type { ParsedContract } from '@/types/contract';
 
 export const maxDuration = 60;
@@ -12,8 +13,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const user = authResult;
 
   try {
-    const body = (await request.json()) as { contract: ParsedContract };
+    const body = (await request.json()) as { contract: ParsedContract; feedbackMode?: string };
     const contract = body.contract;
+    const feedbackMode = isFeedbackMode(body.feedbackMode) ? body.feedbackMode : DEFAULT_FEEDBACK_MODE;
 
     if (!contract || !contract.title || !contract.clauses) {
       return NextResponse.json(
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await db
       .prepare(
-        'INSERT INTO contracts (id, owner_id, title, summary, parties, lifecycle_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO contracts (id, owner_id, title, summary, parties, lifecycle_state, feedback_mode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .bind(
         contractId,
@@ -37,6 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         contract.summary || '',
         JSON.stringify(contract.parties || []),
         'structured',
+        feedbackMode,
         now,
         now,
       )
@@ -91,26 +94,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const db = getDb();
 
     const owned = await db
-      .prepare('SELECT id, title, lifecycle_state, created_at FROM contracts WHERE owner_id = ? ORDER BY created_at DESC')
+      .prepare('SELECT id, title, lifecycle_state, feedback_mode, created_at FROM contracts WHERE owner_id = ? ORDER BY created_at DESC')
       .bind(user.id)
-      .all<{ id: string; title: string; lifecycle_state: string; created_at: number }>();
+      .all<{ id: string; title: string; lifecycle_state: string; feedback_mode: string; created_at: number }>();
 
     const collaborated = await db
       .prepare(
-        `SELECT c.id, c.title, c.lifecycle_state, c.created_at, cc.permission
+        `SELECT c.id, c.title, c.lifecycle_state, c.feedback_mode, c.created_at, cc.permission
          FROM contracts c
          JOIN contract_collaborators cc ON c.id = cc.contract_id
          WHERE cc.user_id = ? AND cc.accepted_at IS NOT NULL
          ORDER BY c.created_at DESC`,
       )
       .bind(user.id)
-      .all<{ id: string; title: string; lifecycle_state: string; created_at: number; permission: string }>();
+      .all<{ id: string; title: string; lifecycle_state: string; feedback_mode: string; created_at: number; permission: string }>();
 
     const contracts = [
       ...((owned.results || []).map((c) => ({
         id: c.id,
         title: c.title,
         lifecycleState: c.lifecycle_state,
+        feedbackMode: c.feedback_mode,
         createdAt: new Date(c.created_at * 1000).toISOString(),
         role: 'owner' as const,
       }))),
@@ -118,6 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         id: c.id,
         title: c.title,
         lifecycleState: c.lifecycle_state,
+        feedbackMode: c.feedback_mode,
         createdAt: new Date(c.created_at * 1000).toISOString(),
         role: 'collaborator' as const,
         permission: c.permission,

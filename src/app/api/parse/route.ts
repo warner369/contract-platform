@@ -6,6 +6,7 @@ import {
   createParsePrompt,
 } from '@/lib/ai/prompts';
 import { createSSEResponse, sseError, startHeartbeat } from '@/lib/sse';
+import { isFeedbackMode, DEFAULT_FEEDBACK_MODE, type FeedbackMode } from '@/lib/feedback-mode';
 import type { ParsedContract } from '@/types/contract';
 
 export const maxDuration = 60;
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       const file = formData.get('file') as File | null;
+      const rawMode = formData.get('feedbackMode');
+      const feedbackMode: FeedbackMode = isFeedbackMode(rawMode) ? rawMode : DEFAULT_FEEDBACK_MODE;
 
       if (!file) {
         return sseError('No file provided', 400);
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         try {
           contract = await generateJsonCompletion<ParsedContract>(
             PARSE_SYSTEM_PROMPT,
-            createParsePrompt(extractedText),
+            createParsePrompt(extractedText, feedbackMode),
           );
         } finally {
           stopHeartbeat();
@@ -67,11 +70,12 @@ export async function POST(request: NextRequest): Promise<Response> {
         send('complete', 'Analysis complete', contract);
       });
     } else if (contentType.includes('application/json')) {
-      const body = (await request.json()) as { text?: string };
+      const body = (await request.json()) as { text?: string; feedbackMode?: string };
       if (!body.text || typeof body.text !== 'string') {
         return sseError('No text provided in request body', 400);
       }
       text = body.text;
+      const feedbackMode: FeedbackMode = isFeedbackMode(body.feedbackMode) ? body.feedbackMode : DEFAULT_FEEDBACK_MODE;
 
       if (text.length < 100) {
         return sseError('Contract text is too short. Please provide a complete contract.', 400);
@@ -86,7 +90,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         try {
           contract = await generateJsonCompletion<ParsedContract>(
             PARSE_SYSTEM_PROMPT,
-            createParsePrompt(text),
+            createParsePrompt(text, feedbackMode),
           );
         } finally {
           stopHeartbeat();

@@ -1,11 +1,16 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import FeedbackModeSelector from '@/components/FeedbackModeSelector';
+import UpgradeModal from '@/components/UpgradeModal';
+import { DEFAULT_FEEDBACK_MODE, type FeedbackMode } from '@/lib/feedback-mode';
+import type { Plan } from '@/lib/billing/entitlements';
 
 type UploadMode = 'file' | 'paste';
 
 interface UploadAreaProps {
-  onUpload?: (file: File | null, text: string | null) => void;
+  onUpload?: (file: File | null, text: string | null, feedbackMode: FeedbackMode) => void;
+  userPlan?: Plan;
 }
 
 const ACCEPTED_TYPES = [
@@ -32,12 +37,14 @@ function UploadIcon({ className }: { className?: string }) {
   );
 }
 
-export default function UploadArea({ onUpload }: UploadAreaProps) {
+export default function UploadArea({ onUpload, userPlan = 'free' }: UploadAreaProps) {
   const [mode, setMode] = useState<UploadMode>('file');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [feedbackMode, setFeedbackMode] = useState<FeedbackMode>(DEFAULT_FEEDBACK_MODE);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
@@ -84,9 +91,9 @@ export default function UploadArea({ onUpload }: UploadAreaProps) {
 
   const handleSubmit = () => {
     if (mode === 'file' && selectedFile) {
-      onUpload?.(selectedFile, null);
+      onUpload?.(selectedFile, null, feedbackMode);
     } else if (mode === 'paste' && pastedText.trim()) {
-      onUpload?.(null, pastedText.trim());
+      onUpload?.(null, pastedText.trim(), feedbackMode);
     }
   };
 
@@ -199,6 +206,16 @@ export default function UploadArea({ onUpload }: UploadAreaProps) {
         <p className="mt-2 text-sm text-red-500">{error}</p>
       )}
 
+      {/* Feedback Mode */}
+      <div className="mt-4">
+        <FeedbackModeSelector
+          value={feedbackMode}
+          onChange={setFeedbackMode}
+          userPlan={userPlan}
+          onUpgradeRequested={() => setShowUpgradeModal(true)}
+        />
+      </div>
+
       {/* Submit */}
       <button
         onClick={handleSubmit}
@@ -213,6 +230,8 @@ export default function UploadArea({ onUpload }: UploadAreaProps) {
       >
         Analyse Contract
       </button>
+
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </div>
   );
 }

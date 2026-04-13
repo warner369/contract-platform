@@ -1,3 +1,5 @@
+export type { FeedbackMode } from '@/lib/feedback-mode';
+
 export type RiskLevel = 'low' | 'medium' | 'high';
 
 export type ClauseCategory =
@@ -112,6 +114,7 @@ export interface ContractState {
   variables: ContractVariable[];
   auditLog: AuditEntry[];
   lifecycleState: ContractLifecycleState;
+  feedbackMode: FeedbackMode;
   selectedClauseId: string | null;
   isLoading: boolean;
   error: string | null;
@@ -133,6 +136,7 @@ export type ContractAction =
   | { type: 'RESOLVE_THREAD'; payload: string }
   | { type: 'SET_VARIABLE'; payload: ContractVariable }
   | { type: 'ADD_AUDIT_ENTRY'; payload: AuditEntry }
+  | { type: 'SET_FEEDBACK_MODE'; payload: FeedbackMode }
   | { type: 'RESET' };
 
 export interface SuggestResponse {

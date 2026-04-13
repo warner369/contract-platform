@@ -18,6 +18,7 @@ import type {
   ContractVariable,
   AuditEntry,
   ContractLifecycleState,
+  FeedbackMode,
   Clause,
   ClauseAnalysis,
   SuggestResponse,
@@ -36,6 +37,7 @@ interface ContractContextValue {
   proposeChange: (change: ClauseChange) => void;
   addClauseNote: (note: ClauseNote) => void;
   removeClauseNote: (noteId: string) => void;
+  setFeedbackMode: (mode: FeedbackMode) => void;
   setLifecycleState: (state: ContractLifecycleState) => void;
   addThread: (thread: ConversationThread) => void;
   addThreadMessage: (threadId: string, message: ThreadMessage) => void;
@@ -101,6 +103,10 @@ export function ContractProvider({ children, initialState: initial }: ContractPr
     withAudit(dispatch, { type: 'REMOVE_CLAUSE_NOTE', payload: noteId }, `Removed note ${noteId}`);
   }, []);
 
+  const setFeedbackMode = useCallback((mode: FeedbackMode) => {
+    withAudit(dispatch, { type: 'SET_FEEDBACK_MODE', payload: mode }, `Feedback mode changed to ${mode}`);
+  }, []);
+
   const setLifecycleState = useCallback((lifecycleState: ContractLifecycleState) => {
     withAudit(dispatch, { type: 'SET_LIFECYCLE_STATE', payload: lifecycleState }, `Lifecycle changed to ${lifecycleState}`);
   }, []);
@@ -142,12 +148,14 @@ export function ContractProvider({ children, initialState: initial }: ContractPr
     state.threads.filter((t) => t.clauseId === clauseId);
 
   const getAnalysisCache = useCallback((clauseId: string): ClauseAnalysis | undefined => {
-    return analysisCache.current.get(clauseId);
-  }, []);
+    const key = `${clauseId}:${state.feedbackMode}`;
+    return analysisCache.current.get(key);
+  }, [state.feedbackMode]);
 
   const setAnalysisCache = useCallback((clauseId: string, analysis: ClauseAnalysis): void => {
-    analysisCache.current.set(clauseId, analysis);
-  }, []);
+    const key = `${clauseId}:${state.feedbackMode}`;
+    analysisCache.current.set(key, analysis);
+  }, [state.feedbackMode]);
 
   const getSuggestionCache = useCallback((key: string): SuggestResponse | undefined => {
     return suggestionCache.current.get(key);
@@ -168,6 +176,7 @@ export function ContractProvider({ children, initialState: initial }: ContractPr
     proposeChange,
     addClauseNote,
     removeClauseNote,
+    setFeedbackMode,
     setLifecycleState,
     addThread,
     addThreadMessage,

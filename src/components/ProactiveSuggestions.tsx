@@ -36,7 +36,7 @@ export default function ProactiveSuggestions({
   contractTitle: string;
   analysis: ClauseAnalysis;
 }) {
-  const { proposeChange, applyChange, rejectChange, getSuggestionCache, setSuggestionCache } = useContract();
+  const { proposeChange, applyChange, rejectChange, getSuggestionCache, setSuggestionCache, state } = useContract();
   const [groups, setGroups] = useState<SuggestionGroup[]>([]);
   const [handledKeys, setHandledKeys] = useState<Set<string>>(new Set());
 
@@ -55,7 +55,7 @@ export default function ProactiveSuggestions({
            try {
             const data = await fetchSSE<SuggestResponse>(
               '/api/suggest-change',
-              { clause, userIntent: intent, contractTitle },
+              { clause, userIntent: intent, contractTitle, feedbackMode: state.feedbackMode },
             );
             setSuggestionCache(cacheKey, data);
             return { intent, response: data, loading: false, error: null };

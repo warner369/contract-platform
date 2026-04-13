@@ -77,7 +77,7 @@ export default function ClauseDetailPanel({
       const response = await fetch('/api/analyse-clause', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clause, contractTitle }),
+        body: JSON.stringify({ clause, contractTitle, feedbackMode: state.feedbackMode }),
       });
 
       const contentType = response.headers.get('content-type') || '';
@@ -147,11 +147,11 @@ export default function ClauseDetailPanel({
       setIsLoading(false);
       setLoadingMessage(null);
     }
-  }, [clause, contractTitle, getAnalysisCache, setAnalysisCache]);
+  }, [clause, contractTitle, state.feedbackMode, getAnalysisCache, setAnalysisCache]);
 
   useEffect(() => {
     fetchAnalysis();
-  }, [clause.id, fetchAnalysis]);
+  }, [clause.id, state.feedbackMode, fetchAnalysis]);
 
   return (
     <div className="p-6 rounded-xl border border-slate-200 bg-white">

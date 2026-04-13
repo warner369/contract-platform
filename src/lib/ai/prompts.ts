@@ -1,4 +1,5 @@
 import type { Clause, ParsedContract, ClauseAnalysis } from '@/types/contract';
+import { type FeedbackMode, feedbackModeDirective, DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
 
 export const PARSE_SYSTEM_PROMPT = `You are a legal contract analyst. Your job is to parse contracts into structured data.
 
@@ -19,8 +20,10 @@ For each clause, identify:
 The summary should capture the key points and overall nature of the agreement.
 List all parties identified in the contract.`;
 
-export function createParsePrompt(contractText: string): string {
-  return `Parse this contract into structured JSON:
+export function createParsePrompt(contractText: string, feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE): string {
+  return `Parse this contract into structured JSON.
+
+Analysis stance: ${feedbackModeDirective(feedbackMode)}
 
 ${contractText}
 
@@ -56,8 +59,11 @@ export function createAnalysePrompt(
   clause: Clause,
   contractContext: string,
   userContext?: string,
+  feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE,
 ): string {
   return `Analyse this clause from a contract.
+
+Analysis stance: ${feedbackModeDirective(feedbackMode)}
 
 Clause ${clause.number}: ${clause.title}
 "${clause.text}"
@@ -92,8 +98,11 @@ export function createSuggestPrompt(
   clause: Clause,
   userIntent: string,
   contractContext: string,
+  feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE,
 ): string {
   return `The user wants to negotiate this clause.
+
+Analysis stance: ${feedbackModeDirective(feedbackMode)}
 
 Original clause ${clause.number}: ${clause.title}
 "${clause.text}"
