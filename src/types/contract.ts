@@ -1,4 +1,5 @@
-export type { FeedbackMode } from '@/lib/feedback-mode';
+import type { FeedbackMode } from '@/lib/feedback-mode';
+export type { FeedbackMode };
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 

@@ -1,6 +1,7 @@
 import type {
   ContractState,
   ContractAction,
+  ClauseChange,
 } from '@/types/contract';
 import { DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
 

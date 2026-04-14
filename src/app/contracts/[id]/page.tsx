@@ -10,6 +10,7 @@ import ExportButton from '@/components/ExportButton';
 import LifecycleBadge from '@/components/LifecycleBadge';
 import { ShareModal } from '@/components/ShareModal';
 import type { ContractState, Clause } from '@/types/contract';
+import { DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
 
 interface ContractData {
   id: string;
@@ -176,6 +177,7 @@ export default function ContractViewPage() {
     variables: [],
     auditLog: [],
     lifecycleState: contractData.lifecycleState as ContractState['lifecycleState'],
+    feedbackMode: DEFAULT_FEEDBACK_MODE,
     selectedClauseId: null,
     isLoading: false,
     error: null,

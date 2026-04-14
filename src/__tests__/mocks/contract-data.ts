@@ -156,6 +156,7 @@ export const stateWithContract: ContractState = {
   variables: [],
   auditLog: [],
   lifecycleState: 'structured',
+  feedbackMode: 'balanced',
   selectedClauseId: null,
   isLoading: false,
   error: null,
