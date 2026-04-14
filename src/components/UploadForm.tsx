@@ -6,7 +6,6 @@ import UploadArea from './UploadArea';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { DEFAULT_FEEDBACK_MODE, type FeedbackMode } from '@/lib/feedback-mode';
 import type { ParsedContract } from '@/types/contract';
-import type { SSEEvent } from '@/lib/sse';
 
 async function extractPdfText(file: File): Promise<string> {
   const pdfjsLib = await import('pdfjs-dist');
@@ -29,12 +28,11 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 const PARSE_PHASES = [
-  { phase: 'upload', label: 'Upload successful', icon: 'check' as const },
-  { phase: 'extracting', label: 'Extracting text from document...', icon: 'spinner' as const },
-  { phase: 'analysing', label: 'Analyzing contract structure...', icon: 'spinner' as const },
-  { phase: 'structuring', label: 'Building clause map...', icon: 'spinner' as const },
-  { phase: 'saving', label: 'Saving contract...', icon: 'spinner' as const },
-  { phase: 'complete', label: 'Analysis complete', icon: 'check' as const },
+  { phase: 'upload', label: 'Upload successful' },
+  { phase: 'extracting', label: 'Extracting text from document...' },
+  { phase: 'analysing', label: 'Analyzing contract structure...' },
+  { phase: 'saving', label: 'Saving contract...' },
+  { phase: 'complete', label: 'Analysis complete' },
 ];
 
 export default function UploadForm() {
@@ -44,10 +42,12 @@ export default function UploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const feedbackModeRef = useRef<FeedbackMode>(DEFAULT_FEEDBACK_MODE);
 
-  const handleUpload = async (file: File | null, text: string | null, feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE) => {
-    feedbackModeRef.current = feedbackMode;
+  const handleUpload = async (
+    file: File | null,
+    text: string | null,
+    feedbackMode: FeedbackMode = DEFAULT_FEEDBACK_MODE,
+  ) => {
     setIsLoading(true);
     setError(null);
     setPhase('upload');
@@ -57,208 +57,79 @@ export default function UploadForm() {
     abortRef.current = abortController;
 
     try {
-      let body: string;
-      let fetchUrl: string;
+      let response: Response;
 
       if (file) {
         if (file.type === 'application/pdf') {
           setPhase('extracting');
           const extractedText = await extractPdfText(file);
           if (!extractedText || extractedText.length < 50) {
-            throw new Error('Could not extract text from PDF. The file may contain only images. Try pasting the text instead.');
+            throw new Error(
+              'Could not extract text from PDF. The file may contain only images. Try pasting the text instead.',
+            );
           }
-          body = JSON.stringify({ text: extractedText, feedbackMode: feedbackModeRef.current });
-          fetchUrl = '/api/parse';
+          setPhase('analysing');
+          response = await fetch('/api/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: extractedText, feedbackMode }),
+            signal: abortController.signal,
+          });
         } else {
+          setPhase('extracting');
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('feedbackMode', feedbackModeRef.current);
-          const response = await fetch('/api/parse', {
+          formData.append('feedbackMode', feedbackMode);
+          setPhase('analysing');
+          response = await fetch('/api/parse', {
             method: 'POST',
             body: formData,
             signal: abortController.signal,
           });
-
-          if (!response.ok) {
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('text/event-stream')) {
-              // SSE error — read the stream
-              const reader = response.body!.getReader();
-              const decoder = new TextDecoder();
-              let buffer = '';
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop() || '';
-                for (const line of lines) {
-                  if (!line.startsWith('data: ')) continue;
-                  try {
-                    const event: SSEEvent = JSON.parse(line.slice(6));
-                    if (event.phase === 'error') {
-                      throw new Error(event.message);
-                    }
-                  } catch (e) {
-                    if (e instanceof Error) throw e;
-                  }
-                }
-              }
-            } else {
-              const data = (await response.json()) as { error?: string };
-              throw new Error(data.error ?? 'Failed to analyse contract');
-            }
-            return;
-          }
-
-          // SSE response for file upload
-          await handleSSEResponse(response);
-          return;
         }
       } else if (text) {
-        body = JSON.stringify({ text, feedbackMode: feedbackModeRef.current });
-        fetchUrl = '/api/parse';
+        setPhase('analysing');
+        response = await fetch('/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, feedbackMode }),
+          signal: abortController.signal,
+        });
       } else {
         setIsLoading(false);
         return;
       }
 
-      const response = await fetch(fetchUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        signal: abortController.signal,
-      });
-
       if (!response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('text/event-stream')) {
-          const reader = response.body!.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              try {
-                const event: SSEEvent = JSON.parse(line.slice(6));
-                if (event.phase === 'error') {
-                  throw new Error(event.message);
-                }
-              } catch (e) {
-                if (e instanceof Error) throw e;
-              }
-            }
-          }
-          throw new Error('Failed to analyse contract');
-        } else {
-          const data = (await response.json()) as { error?: string };
-          throw new Error(data.error ?? 'Failed to analyse contract');
-        }
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Failed to analyse contract (${response.status})`);
       }
 
-      await handleSSEResponse(response);
+      const parsed = (await response.json()) as { contract: ParsedContract };
+      if (!parsed.contract) {
+        throw new Error('Invalid response from parse endpoint');
+      }
+
+      setPhase('saving');
+      const saveRes = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract: parsed.contract, feedbackMode }),
+      });
+      const saved = (await saveRes.json()) as { id?: string; error?: string };
+      if (!saveRes.ok || saved.error) {
+        throw new Error(saved.error || `Save failed (${saveRes.status})`);
+      }
+
+      setPhase('complete');
+      router.push(`/contracts/${saved.id}`);
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
       setIsLoading(false);
+      setPhase(null);
     }
   };
-
-  async function handleSSEResponse(response: Response) {
-    if (!response.body) {
-      throw new Error('No response body');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        try {
-          const event: SSEEvent = JSON.parse(line.slice(6));
-          if (event.phase === 'error') {
-            throw new Error(event.message);
-          }
-          setPhase(event.phase);
-          if (event.phase === 'complete' && event.data !== undefined) {
-            const contract = event.data as ParsedContract;
-            setPhase('saving');
-            try {
-              const saveRes = await fetch('/api/contracts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contract, feedbackMode: feedbackModeRef.current }),
-              });
-              const saved = await saveRes.json() as { id?: string; error?: string };
-              if (!saveRes.ok || saved.error) {
-                throw new Error(saved.error || `Save failed (${saveRes.status})`);
-              }
-              setPhase('complete');
-              setIsLoading(false);
-              router.push(`/contracts/${saved.id}`);
-            } catch (saveErr) {
-              setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
-              setIsLoading(false);
-              return;
-            }
-            return;
-          }
-        } catch (e) {
-          if (e instanceof Error && e.message !== 'SyntaxError') throw e;
-        }
-      }
-    }
-
-    // Process any remaining buffer
-    if (buffer.trim().startsWith('data: ')) {
-      try {
-        const event: SSEEvent = JSON.parse(buffer.trim().slice(6));
-        if (event.phase === 'complete' && event.data !== undefined) {
-          const contract = event.data as ParsedContract;
-          setPhase('saving');
-          try {
-            const saveRes = await fetch('/api/contracts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contract }),
-            });
-            const saved = await saveRes.json() as { id?: string; error?: string };
-            if (!saveRes.ok || saved.error) {
-              throw new Error(saved.error || `Save failed (${saveRes.status})`);
-            }
-            setPhase('complete');
-            setIsLoading(false);
-            router.push(`/contracts/${saved.id}`);
-          } catch (saveErr) {
-            setError(saveErr instanceof Error ? saveErr.message : 'Failed to save contract');
-            setIsLoading(false);
-            return;
-          }
-          return;
-        }
-        if (event.phase === 'error') {
-          throw new Error(event.message);
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message !== 'SyntaxError') throw e;
-      }
-    }
-  }
 
   if (isLoading || phase) {
     const currentPhaseIndex = PARSE_PHASES.findIndex((p) => p.phase === phase);

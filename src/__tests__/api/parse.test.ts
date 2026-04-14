@@ -22,24 +22,7 @@ const mockExtractText = vi.mocked(extractText);
 
 const longText = 'A'.repeat(200);
 
-async function readSSE(response: Response): Promise<{ events: Array<{ phase: string; message: string; data?: unknown }> }> {
-  const text = await response.text();
-  const events: Array<{ phase: string; message: string; data?: unknown }> = [];
-
-  for (const line of text.split('\n')) {
-    if (!line.startsWith('data: ')) continue;
-    try {
-      const event = JSON.parse(line.slice(6));
-      events.push(event);
-    } catch {
-      // skip malformed lines
-    }
-  }
-
-  return { events };
-}
-
-describe('POST /api/parse (SSE)', () => {
+describe('POST /api/parse', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -51,9 +34,8 @@ describe('POST /api/parse (SSE)', () => {
       body: JSON.stringify({}),
     });
     const res = await POST(req);
-    // Validation errors return plain JSON, not SSE
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = (await res.json()) as { error?: string };
     expect(body.error).toContain('No text provided');
   });
 
@@ -89,7 +71,7 @@ describe('POST /api/parse (SSE)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns SSE stream with phases for valid JSON text', async () => {
+  it('returns parsed contract as JSON for valid text body', async () => {
     mockGenerateJsonCompletion.mockResolvedValueOnce(sampleContract);
     const req = new NextRequest('http://localhost/api/parse', {
       method: 'POST',
@@ -97,22 +79,16 @@ describe('POST /api/parse (SSE)', () => {
       body: JSON.stringify({ text: longText }),
     });
     const res = await POST(req);
-    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('application/json');
 
-    const { events } = await readSSE(res);
-    expect(events.length).toBeGreaterThanOrEqual(2);
-    expect(events[0].phase).toBe('upload');
-    expect(events.some((e) => e.phase === 'analysing')).toBe(true);
-    expect(events.some((e) => e.phase === 'complete')).toBe(true);
-
-    const completeEvent = events.find((e) => e.phase === 'complete');
-    expect(completeEvent?.data).toBeDefined();
-    const contractData = completeEvent?.data as Record<string, unknown> | undefined;
-    expect(contractData?.title).toBe(sampleContract.title);
+    const body = (await res.json()) as { contract?: { title?: string } };
+    expect(body.contract?.title).toBe(sampleContract.title);
   });
 
-  it('returns SSE stream with phases for DOCX file upload', async () => {
-    const extractedText = 'Extracted text from a DOCX file that is long enough to pass the minimum length check for parsing contracts';
+  it('returns parsed contract as JSON for DOCX file upload', async () => {
+    const extractedText =
+      'Extracted text from a DOCX file that is long enough to pass the minimum length check for parsing contracts';
     mockExtractText.mockResolvedValueOnce(extractedText);
     mockGenerateJsonCompletion.mockResolvedValueOnce(sampleContract);
 
@@ -127,16 +103,14 @@ describe('POST /api/parse (SSE)', () => {
       body: formData,
     });
     const res = await POST(req);
-    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(res.status).toBe(200);
 
-    const { events } = await readSSE(res);
-    expect(events.some((e) => e.phase === 'upload')).toBe(true);
-    expect(events.some((e) => e.phase === 'extracting')).toBe(true);
-    expect(events.some((e) => e.phase === 'analysing')).toBe(true);
-    expect(events.some((e) => e.phase === 'complete')).toBe(true);
+    const body = (await res.json()) as { contract?: { title?: string } };
+    expect(body.contract?.title).toBe(sampleContract.title);
+    expect(mockExtractText).toHaveBeenCalled();
   });
 
-  it('returns SSE error event when AI throws', async () => {
+  it('returns 500 with error payload when AI throws', async () => {
     mockGenerateJsonCompletion.mockRejectedValueOnce(new Error('Something went wrong'));
     const req = new NextRequest('http://localhost/api/parse', {
       method: 'POST',
@@ -144,10 +118,9 @@ describe('POST /api/parse (SSE)', () => {
       body: JSON.stringify({ text: longText }),
     });
     const res = await POST(req);
-    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
-
-    const { events } = await readSSE(res);
-    expect(events.some((e) => e.phase === 'error')).toBe(true);
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe('Something went wrong');
   });
 
   it('returns 400 for unsupported content type', async () => {
