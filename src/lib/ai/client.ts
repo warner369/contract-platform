@@ -10,7 +10,7 @@ export const MODEL = 'claude-haiku-4-5-20251001';
 export async function generateCompletion(
   systemPrompt: string,
   userPrompt: string,
-  maxTokens: number = 8192,
+  maxTokens: number = 16384,
 ): Promise<string> {
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -57,7 +57,7 @@ function coerceJsonStrings(value: unknown): unknown {
 export async function generateJsonCompletion<T>(
   systemPrompt: string,
   userPrompt: string,
-  maxTokens: number = 8192,
+  maxTokens: number = 16384,
 ): Promise<T> {
   const response = await generateCompletion(systemPrompt, userPrompt, maxTokens);
 
