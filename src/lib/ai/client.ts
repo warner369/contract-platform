@@ -4,8 +4,8 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Use explicit version ID for Sonnet 4.5 (more widely available)
-export const MODEL = 'claude-sonnet-4-5-20250929';
+// Haiku 4.5 — fast enough to fit inside Cloudflare Workers wall-clock limits.
+export const MODEL = 'claude-haiku-4-5-20251001';
 
 export async function generateCompletion(
   systemPrompt: string,
