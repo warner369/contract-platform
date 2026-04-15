@@ -217,9 +217,11 @@ Cloudflare Workers Builds does **NOT** run D1 migrations automatically on deploy
    npm run db:migrate:local   # Apply to local dev D1
    npm run db:migrate:remote  # Apply to production D1
    ```
-2. **CI/CD**: A GitHub Actions workflow (`.github/workflows/migrate.yml`) automatically applies pending migrations to the remote D1 on every push to `main` that changes files in `migrations/`. The workflow requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets in the GitHub repo.
+2. **Important**: Run `npm run db:migrate:remote` **before** pushing to `main`. Cloudflare Workers Builds auto-deploys on push, so the migration must be applied first to avoid runtime errors from missing columns/tables.
 3. **Backward compatibility**: Always make schema changes additive (add columns/tables, don't remove or rename in the same deployment as code changes). This ensures there's no breakage during the brief window between migration and code deploy.
 4. **Safety net**: D1 Time Travel allows restoring the database to any point in the last 30 days if a migration goes wrong: `wrangler d1 time-travel restore contract-platform-db --timestamp=<unix-timestamp>`
+
+> **Do NOT use GitHub Actions or any non-Cloudflare CI/CD for migrations or deployment.** The entire pipeline runs through Cloudflare Workers Builds. Migrations are a manual step via `npm run db:migrate:remote`.
 
 ## Deployment
 
