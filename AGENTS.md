@@ -204,24 +204,35 @@ The `ContractProvider` accepts optional `initialState` and `contractId` props fo
 - **`esbuild` must remain a direct devDependency** — `@opennextjs/cloudflare` uses `esbuild` at the top level during its build. If `esbuild` is only nested (e.g. under `@opennextjs/aws`), the CF build fails with `ERR_MODULE_NOT_FOUND: Cannot find package 'esbuild'`. Do NOT remove `esbuild` from `devDependencies`.
 - The `REJECT_CHANGE` action uses change `id` (not `clauseId`) to identify the change to reject, since multiple changes can exist for the same clause.
 - D1 LOCAL MIGRATIONS must be re-applied after schema changes: `npm run db:migrate:local`
-- D1 REMOTE MIGRATIONS must be applied after schema changes: `npm run db:migrate:remote`
-- **Always apply both local and remote migrations** after modifying any file in `migrations/`
 - After changing `wrangler.toml`, regenerate types: `npx wrangler types --env-interface CloudflareEnv`
 
 ## D1 Migration Procedure
 
-Cloudflare Workers Builds does **NOT** run D1 migrations automatically on deploy. Migrations must be applied separately:
+D1 migrations are **automatically applied** as part of the Cloudflare Workers Builds deploy command. The deploy command chains migration before deploy:
 
-1. **When adding a new migration file** in `migrations/`, always run **both**:
-   ```bash
-   npm run db:migrate:local   # Apply to local dev D1
-   npm run db:migrate:remote  # Apply to production D1
-   ```
-2. **Important**: Run `npm run db:migrate:remote` **before** pushing to `main`. Cloudflare Workers Builds auto-deploys on push, so the migration must be applied first to avoid runtime errors from missing columns/tables.
-3. **Backward compatibility**: Always make schema changes additive (add columns/tables, don't remove or rename in the same deployment as code changes). This ensures there's no breakage during the brief window between migration and code deploy.
-4. **Safety net**: D1 Time Travel allows restoring the database to any point in the last 30 days if a migration goes wrong: `wrangler d1 time-travel restore contract-platform-db --timestamp=<unix-timestamp>`
+```
+npx wrangler d1 migrations apply contract-platform-db --remote && npx @opennextjs/cloudflare deploy
+```
 
-> **Do NOT use GitHub Actions or any non-Cloudflare CI/CD for migrations or deployment.** The entire pipeline runs through Cloudflare Workers Builds. Migrations are a manual step via `npm run db:migrate:remote`.
+**How it works:**
+- On every push to `main`, Cloudflare Workers Builds runs the deploy command above
+- `wrangler d1 migrations apply` checks for pending migrations and applies them (skips already-applied ones instantly)
+- If a migration fails, it rolls back automatically **and** the deploy is blocked (the `&&` chain prevents deploying broken code)
+- If there are no pending migrations, the command exits cleanly and deploy proceeds as normal
+- No manual remote migration step is needed — pushing to `main` handles everything
+
+**For local development**, you still need to apply migrations manually:
+```bash
+npm run db:migrate:local   # Apply to local dev D1
+```
+
+**Backward compatibility**: Always make schema changes additive (add columns/tables, don't remove or rename in the same deployment as code changes). This ensures there's no breakage during the brief window between migration and code deploy.
+
+**Safety net**: D1 Time Travel allows restoring the database to any point in the last 30 days if a migration goes wrong: `wrangler d1 time-travel restore contract-platform-db --timestamp=<unix-timestamp>`
+
+**Manual remote migration** (fallback): `npm run db:migrate:remote` — only needed if you need to apply a migration outside of the normal deploy pipeline.
+
+> **Do NOT use GitHub Actions or any non-Cloudflare CI/CD for migrations or deployment.** The entire pipeline runs through Cloudflare Workers Builds.
 
 ## Deployment
 
@@ -229,7 +240,7 @@ Deployment is via **Cloudflare Workers Builds** (CI/CD connected to the GitHub r
 
 In the Cloudflare dashboard:
 - **Build command**: `npx @opennextjs/cloudflare build`
-- **Deploy command**: `npx @opennextjs/cloudflare deploy`
+- **Deploy command**: `npx wrangler d1 migrations apply contract-platform-db --remote && npx @opennextjs/cloudflare deploy`
 - Set `ANTHROPIC_API_KEY` as a Workers secret
 - D1 database binding `DB` is configured in `wrangler.toml`
 
