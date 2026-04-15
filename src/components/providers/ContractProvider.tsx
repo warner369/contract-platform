@@ -60,9 +60,10 @@ const ContractContext = createContext<ContractContextValue | null>(null);
 interface ContractProviderProps {
   children: ReactNode;
   initialState?: ContractState;
+  contractId?: string;
 }
 
-export function ContractProvider({ children, initialState: initial }: ContractProviderProps) {
+export function ContractProvider({ children, initialState: initial, contractId }: ContractProviderProps) {
   const [state, dispatch] = useReducer(contractReducer, initial ?? initialState);
   const analysisCache = useRef(new Map<string, ClauseAnalysis>());
   const suggestionCache = useRef(new Map<string, SuggestResponse>());
@@ -105,11 +106,25 @@ export function ContractProvider({ children, initialState: initial }: ContractPr
 
   const setFeedbackMode = useCallback((mode: FeedbackMode) => {
     withAudit(dispatch, { type: 'SET_FEEDBACK_MODE', payload: mode }, `Feedback mode changed to ${mode}`);
-  }, []);
+    if (contractId) {
+      fetch(`/api/contracts/${contractId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedbackMode: mode }),
+      }).catch(() => {});
+    }
+  }, [contractId]);
 
   const setLifecycleState = useCallback((lifecycleState: ContractLifecycleState) => {
     withAudit(dispatch, { type: 'SET_LIFECYCLE_STATE', payload: lifecycleState }, `Lifecycle changed to ${lifecycleState}`);
-  }, []);
+    if (contractId) {
+      fetch(`/api/contracts/${contractId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lifecycleState }),
+      }).catch(() => {});
+    }
+  }, [contractId]);
 
   const addThread = useCallback((thread: ConversationThread) => {
     withAudit(dispatch, { type: 'ADD_THREAD', payload: thread }, `Started discussion on clause ${thread.clauseId}`);

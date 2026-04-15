@@ -12,6 +12,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "db:migrate:local": "wrangler d1 migrations apply contract-platform-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply contract-platform-db --remote",
+    "db:migrate:list": "wrangler d1 migrations list contract-platform-db --remote",
     "verify": "npm run lint && npm run test:run && npm run build"
   },
   "dependencies": {

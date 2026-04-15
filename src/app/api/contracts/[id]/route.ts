@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db/client';
 import { getContractAccess } from '@/lib/db/authHelpers';
+import { isFeedbackMode } from '@/lib/feedback-mode';
 
 export const maxDuration = 60;
 
@@ -26,6 +27,7 @@ export async function GET(
         summary: string;
         parties: string;
         lifecycle_state: string;
+        feedback_mode: string;
         created_at: number;
         updated_at: number;
       }>();
@@ -74,6 +76,7 @@ export async function GET(
       summary: contract.summary,
       parties: JSON.parse(contract.parties || '[]'),
       lifecycleState: contract.lifecycle_state,
+      feedbackMode: contract.feedback_mode,
       createdAt: new Date(contract.created_at * 1000).toISOString(),
       updatedAt: new Date(contract.updated_at * 1000).toISOString(),
       role: access.role,
@@ -158,6 +161,10 @@ export async function PUT(
     if (body.parties !== undefined) {
       updates.push('parties = ?');
       values.push(JSON.stringify(body.parties));
+    }
+    if (body.feedbackMode !== undefined && isFeedbackMode(body.feedbackMode)) {
+      updates.push('feedback_mode = ?');
+      values.push(body.feedbackMode);
     }
 
     if (updates.length === 0) {

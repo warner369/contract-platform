@@ -26,8 +26,9 @@ npm run test:coverage # Vitest with coverage
 npm run verify       # lint + test:run + build
 npm run build:cf     # Build for Cloudflare Workers (Linux/CI only)
 npm run preview      # Local Cloudflare Workers preview (wrangler dev)
-npx wrangler d1 migrations apply contract-platform-db --local   # Apply D1 migrations locally
-npx wrangler d1 migrations apply contract-platform-db --remote  # Apply D1 migrations to production
+npm run db:migrate:local  # Apply D1 migrations locally
+npm run db:migrate:remote # Apply D1 migrations to production
+npm run db:migrate:list  # List migration status on production D1
 npx wrangler d1 execute contract-platform-db --local --command="SQL"  # Run ad-hoc SQL locally
 npx wrangler types --env-interface CloudflareEnv                  # Regenerate CloudflareEnv types
 ```
@@ -73,7 +74,7 @@ src/
 │   ├── UploadArea.tsx                    # File upload with drag-drop (Client)
 │   ├── UploadForm.tsx                    # Upload orchestration — saves to D1 via API
 │   ├── ContractView.tsx                  # Clause list + detail panel (Client)
-│   ├── ContractPageClient.tsx            # Tab switcher (clauses/changes)
+│   ├── ContractPageClient.tsx            # Tab switcher (clauses/changes) + feedback mode
 │   ├── ClauseDetailPanel.tsx             # Clause analysis + suggest changes
 │   ├── SuggestChangePanel.tsx            # Intent-based editing UI
 │   ├── ProactiveSuggestions.tsx           # Auto-generated suggestions
@@ -83,11 +84,13 @@ src/
 │   ├── ClauseNotes.tsx                  # Clause-level notes (internal/external)
 │   ├── ThreadPanel.tsx                  # Clause-level discussion threads
 │   ├── VariablesPanel.tsx                # Contract variable editing
+│   ├── FeedbackModeSelector.tsx          # Aggressive/balanced/safety_first toggle
+│   ├── UpgradeModal.tsx                 # Pro-tier upgrade prompt
 │   ├── RequireAuth.tsx                  # Auth guard redirect component
 │   ├── ShareModal.tsx                   # Collaborator management + invite links
 │   └── providers/
 │       ├── AuthProvider.tsx              # React Context for auth state (user, login, logout)
-│       └── ContractProvider.tsx          # React Context + useReducer (Client)
+│       └── ContractProvider.tsx          # React Context + useReducer (Client), persists feedbackMode + lifecycleState
 ├── hooks/
 │   └── useSSEFetch.ts                   # SSE stream consumer hook
 ├── lib/
@@ -99,9 +102,12 @@ src/
 │   │   ├── session.ts                    # Session token create/verify/delete + cookie helpers
 │   │   ├── getUser.ts                    # Extract user from request (session cookie → D1 lookup)
 │   │   └── index.ts                      # Barrel export
+│   ├── billing/
+│   │   └── entitlements.ts              # Plan gating (free/pro), feedback mode access control
 │   ├── db/
 │   │   ├── client.ts                     # getDb() via getCloudflareContext(), getCachedDb() with React cache()
 │   │   └── authHelpers.ts               # requireAuth, getContractAccess, requireOwner helpers
+│   ├── feedback-mode.ts                  # FeedbackMode type, directives for AI prompts, validation
 │   ├── parsers/
 │   │   ├── pdf.ts                         # Stub — throws error (PDF handled client-side)
 │   │   ├── docx.ts                        # DOCX text extraction (mammoth)
@@ -121,7 +127,8 @@ src/
 │   ├── api/                              # API route tests
 │   └── components/                       # Component tests
 ├── migrations/
-│   └── 0001_initial_schema.sql           # D1 database schema
+│   ├── 0001_initial_schema.sql           # D1 database schema
+│   └── 0002_feedback_mode_and_plan.sql   # Feedback mode + user plan columns
 └── vitest.config.ts
 ```
 
@@ -166,9 +173,9 @@ Accessed via `getCloudflareContext()` from `@opennextjs/cloudflare` in API route
 
 ### State Management
 
-`ContractProvider` uses `useReducer` (with pure reducer in `lib/reducer.ts`). Analysis and suggestion caches use `useRef<Map>`. Currently in-memory only — changes/notes/threads are not yet persisted to D1 (the API routes exist but the UI does not yet call them on every mutation; this is deferred future work).
+`ContractProvider` uses `useReducer` (with pure reducer in `lib/reducer.ts`). Analysis and suggestion caches use `useRef<Map>`. The provider accepts an optional `contractId` prop — when provided, `setFeedbackMode` and `setLifecycleState` persist changes to D1 via the contracts PUT API. Changes/notes/threads are not yet persisted to D1 (the API routes exist but the UI dispatchers don't call them yet; this is deferred future work).
 
-The `ContractProvider` accepts an optional `initialState` prop for hydrating from the API response when viewing a persisted contract.
+The `ContractProvider` accepts optional `initialState` and `contractId` props for hydrating from and persisting to the API when viewing a saved contract.
 
 ## Code Standards
 
@@ -196,8 +203,23 @@ The `ContractProvider` accepts an optional `initialState` prop for hydrating fro
 - `ANTHROPIC_API_KEY` must be set in `.env.local` for dev and as a Cloudflare Workers secret for deployment
 - **`esbuild` must remain a direct devDependency** — `@opennextjs/cloudflare` uses `esbuild` at the top level during its build. If `esbuild` is only nested (e.g. under `@opennextjs/aws`), the CF build fails with `ERR_MODULE_NOT_FOUND: Cannot find package 'esbuild'`. Do NOT remove `esbuild` from `devDependencies`.
 - The `REJECT_CHANGE` action uses change `id` (not `clauseId`) to identify the change to reject, since multiple changes can exist for the same clause.
-- D1 LOCAL MIGRATIONS must be re-applied after schema changes: `npx wrangler d1 migrations apply contract-platform-db --local`
+- D1 LOCAL MIGRATIONS must be re-applied after schema changes: `npm run db:migrate:local`
+- D1 REMOTE MIGRATIONS must be applied after schema changes: `npm run db:migrate:remote`
+- **Always apply both local and remote migrations** after modifying any file in `migrations/`
 - After changing `wrangler.toml`, regenerate types: `npx wrangler types --env-interface CloudflareEnv`
+
+## D1 Migration Procedure
+
+Cloudflare Workers Builds does **NOT** run D1 migrations automatically on deploy. Migrations must be applied separately:
+
+1. **When adding a new migration file** in `migrations/`, always run **both**:
+   ```bash
+   npm run db:migrate:local   # Apply to local dev D1
+   npm run db:migrate:remote  # Apply to production D1
+   ```
+2. **CI/CD**: A GitHub Actions workflow (`.github/workflows/migrate.yml`) automatically applies pending migrations to the remote D1 on every push to `main` that changes files in `migrations/`. The workflow requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets in the GitHub repo.
+3. **Backward compatibility**: Always make schema changes additive (add columns/tables, don't remove or rename in the same deployment as code changes). This ensures there's no breakage during the brief window between migration and code deploy.
+4. **Safety net**: D1 Time Travel allows restoring the database to any point in the last 30 days if a migration goes wrong: `wrangler d1 time-travel restore contract-platform-db --timestamp=<unix-timestamp>`
 
 ## Deployment
 
@@ -214,7 +236,7 @@ In the Cloudflare dashboard:
 ## Known Issues
 
 - **`pdf.ts` is a stub**: PDF extraction is handled client-side in `UploadForm.tsx` using `pdfjs-dist`. The server-side `pdf.ts` only throws an error — PDFs must be sent as extracted text via JSON.
-- **Changes/notes/threads not yet persisted to D1**: The API routes for CRUD on notes, threads, changes, lifecycle exist but the UI dispatchers in ContractProvider don't call them yet. Data is in-memory only during a session. This is deferred future work.
+- **Changes/notes/threads not yet persisted to D1**: The API routes for CRUD on notes, threads, changes exist but the UI dispatchers in ContractProvider don't call them yet. Data is in-memory only during a session. Feedback mode and lifecycle state are persisted via the contracts PUT API. This is deferred future work.
 - **`.npmrc` contains `legacy-peer-deps=true`**: Required because `esbuild@0.25.4` conflicts with `esbuild@^0.27` (optional peer dep of `vite@8`). Do NOT remove.
 
 ## TODO
@@ -235,6 +257,7 @@ In the Cloudflare dashboard:
 - [x] Dashboard page listing user's contracts
 - [x] Share modal with invite links + collaborator management
 - [x] Invite acceptance page
+- [x] Persist feedbackMode and lifecycleState to D1 on mutation (via contracts PUT API)
 - [ ] Persist changes/notes/threads to D1 on every mutation (API routes exist, UI wiring needed)
 - [ ] Add tests for auth, contract API, and collaboration flows
 - [x] Wire `ComparisonView` into contract detail page for side-by-side diffs of active changes

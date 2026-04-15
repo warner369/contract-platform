@@ -10,7 +10,7 @@ import ExportButton from '@/components/ExportButton';
 import LifecycleBadge from '@/components/LifecycleBadge';
 import { ShareModal } from '@/components/ShareModal';
 import type { ContractState, Clause } from '@/types/contract';
-import { DEFAULT_FEEDBACK_MODE } from '@/lib/feedback-mode';
+import { DEFAULT_FEEDBACK_MODE, isFeedbackMode } from '@/lib/feedback-mode';
 
 interface ContractData {
   id: string;
@@ -19,6 +19,7 @@ interface ContractData {
   summary: string;
   parties: string[];
   lifecycleState: string;
+  feedbackMode: string;
   role: 'owner' | 'collaborator';
   permission: string;
   clauses: Array<{
@@ -177,14 +178,14 @@ export default function ContractViewPage() {
     variables: [],
     auditLog: [],
     lifecycleState: contractData.lifecycleState as ContractState['lifecycleState'],
-    feedbackMode: DEFAULT_FEEDBACK_MODE,
+    feedbackMode: isFeedbackMode(contractData.feedbackMode) ? contractData.feedbackMode : DEFAULT_FEEDBACK_MODE,
     selectedClauseId: null,
     isLoading: false,
     error: null,
   };
 
   return (
-    <ContractProvider initialState={initialState}>
+    <ContractProvider initialState={initialState} contractId={params.id}>
       <div className="flex flex-col min-h-screen bg-[#f8f7f4]">
         <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
           <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
